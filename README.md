@@ -1,0 +1,261 @@
+# Telecom Drone Drive-Test Platform
+
+A TypeScript npm-workspace monorepo for planning and executing telecom drone drive-test missions, collecting results, validating measurements, and presenting geographic signal-quality data.
+
+## Repository layout
+
+```text
+.
+├── apps/
+│   ├── frontend/          # Vite + OpenLayers operator console
+│   ├── backend/           # NestJS + Prisma API
+│   └── drone-mock/        # local drone integration simulator
+├── packages/
+│   └── contracts/         # shared TypeScript domain/API contracts
+├── tests/                 # platform-level workflow and integration tests
+├── tools/
+│   ├── dev.mjs            # starts the local application stack
+│   ├── watch-service.mjs  # compile/watch helper for Node services
+│   ├── test.mjs           # test runner
+│   ├── clean.mjs          # build/generated-file cleanup
+|   ├── podman-db.mjs      # launch/stop database pod
+│   └── data-pipeline/     # administrative/KPI data generation
+├── docs/
+│   ├── adr/
+│   └── uml/
+├── tsconfig.base.json
+├── package.json
+├── package-lock.json
+```
+
+The three applications stay independently runnable. Shared contracts live in `packages/contracts` so frontend, backend, and drone tooling do not copy API/domain types.
+
+## Requirements
+
+Use Node.js 22+ and npm 10+.
+
+```bash
+node --version
+npm --version
+```
+
+The repository enforces the Node/npm engine range through `.npmrc`.
+
+PostgreSQL runs inside a dedicated Podman pod.
+
+
+## Install
+
+```bash
+npm install
+```
+
+The install lifecycle generates the Prisma client into `apps/backend/src/generated/prisma/`. Generated Prisma code is ignored by Git and recreated automatically by builds/checks.
+
+## Environment
+
+Backend:
+
+```bash
+cp apps/backend/.env.example apps/backend/.env
+```
+
+Frontend HTTP mode:
+
+```bash
+cp apps/frontend/.env.example apps/frontend/.env
+```
+
+The frontend uses the in-memory mission adapter when `VITE_API_BASE_URL` is unset. Setting it switches mission, result, and signal-quality requests to the NestJS backend.
+
+## Development
+
+Start PostgreSQL first:
+
+```bash
+npm run db:up
+```
+
+Then start the full application development stack:
+
+```bash
+npm run dev
+```
+
+This starts:
+
+```text
+Frontend     http://localhost:5173
+Backend      http://localhost:3000
+Drone mock   http://localhost:3001
+```
+
+The Node services use TypeScript compilation in watch mode plus Node's native runtime watch. The backend also watches Prisma-generated code during development.
+
+Run individual applications when needed:
+
+```bash
+npm run dev:backend
+npm run dev:drone
+npm run dev:frontend
+```
+
+For frontend-only offline/mock development, `dev:frontend` works without PostgreSQL.
+
+Check the database with:
+
+```bash
+npm run db:status
+```
+
+Stop the database with:
+
+```bash
+npm run db:down
+```
+
+Inspect database logs with:
+
+```bash
+npm run db:logs
+```
+
+Reset the local database volume with:
+
+```bash
+npm run db:reset
+```
+
+## Build and validation
+
+Build everything:
+
+```bash
+npm run build
+```
+
+Type-check every workspace:
+
+```bash
+npm run check
+```
+
+Run frontend workflow tests:
+
+```bash
+npm test
+```
+
+Run the PostgreSQL-backed integration test as well:
+
+```bash
+npm run backend:test
+```
+
+Or run the complete validation/test sequence:
+
+```bash
+npm run platform:check
+npm run platform:test
+```
+
+Clean generated/build output:
+
+```bash
+npm run clean
+```
+
+## Database workflow
+
+After changing `apps/backend/prisma/schema.prisma`:
+
+```bash
+npm run db:generate
+npm run db:migrate -- --name <migration-name>
+```
+
+The backend uses Prisma's generated TypeScript client with the PostgreSQL driver adapter. The generated client is deliberately kept inside the backend source tree and is recreated instead of committed.
+
+## npm/workspace conventions
+
+The root package is the developer entry point. App packages own app-specific scripts and dependencies; root scripts compose those commands into platform-level workflows.
+
+Common commands:
+
+```text
+npm run dev             full local application stack
+npm run build           build all apps
+npm run check           type-check all workspaces
+npm test                frontend/workflow tests
+npm run backend:test    backend integration test
+npm run db:up           start PostgreSQL
+npm run db:migrate      create/apply a development migration
+npm run clean           remove generated/build output
+```
+
+There is intentionally one TypeScript version at the workspace root. Application `tsconfig.json` files extend `tsconfig.base.json` and only define runtime/module-specific options.
+
+## Mission API
+
+The shared mission contract models:
+
+- `DRAFT → PLANNED → DISPATCHED → RUNNING → COMPLETED|FAILED`
+- cancellation of non-terminal missions
+- immutable route revisions
+- idempotent commands
+- derivation of a new draft mission from a failed mission
+
+Coordinates exchanged with the API are GeoJSON WGS84 longitude/latitude. OpenLayers transforms them to the active map projection.
+
+## Mission execution and results
+
+Drones interact directly with the backend:
+
+```text
+POST /missions/:id/claim
+POST /missions/:id/status
+POST /missions/:id/result
+POST /missions/:id/result/revisions
+GET  /missions/:id/result
+GET  /missions/:id/result/approved-measurements
+```
+
+Unclaimed planned missions past `dispatchDeadline` are failed by the dispatch sweeper as `MISSED_DISPATCH`.
+
+Result uploads are immutable. Validation is represented by immutable result revisions; approved measurements are derived from the active finalized revision.
+
+## Signal-quality surface
+
+The frontend supports two interchangeable modes.
+
+With `VITE_API_BASE_URL` set, the backend returns raw interpolated numeric tiles and range metadata. Presentation remains client-side.
+
+Without it, `apps/frontend/public/data/signal-quality.json` is interpolated in a Web Worker.
+
+Both modes intentionally separate numeric data from presentation colors. The signal-quality display uses a dark-red-to-light-blue scale and a no-data representation rather than replacing values with pre-colored backend output.
+
+## Administrative data
+
+Runtime administrative boundaries are stored in:
+
+```text
+apps/frontend/public/data/boundaries.geojson
+```
+
+Preprocessing and source datasets are kept under:
+
+```text
+tools/data-pipeline/admin-boundaries/
+```
+
+## Development notes
+
+The frontend exposes `globalThis.compositionRoot` only in Vite development mode. Production builds do not perform the development-only map/UI mutations that were previously embedded in startup code.
+
+The backend loads `apps/backend/.env` at runtime through `dotenv/config`; the checked-in file is only the example configuration.
+
+The drone mock is intentionally a development integration harness. It calls the real backend claim/status endpoints and does not represent a production drone protocol or authentication layer.
+
+## Architecture redesign backlog
+
+The ordered redesign work is tracked in `TODO.md`; implementation-agent tickets are under `docs/tasks/`.

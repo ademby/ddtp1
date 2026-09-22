@@ -1,0 +1,63 @@
+@startuml
+hide empty description
+
+[*] --> Workspace
+
+state Workspace {
+  [*] --> Inspecting
+
+  state Inspecting {
+    [*] --> GlobalSurface
+    GlobalSurface --> GeographySelected : select geography
+    GeographySelected --> GlobalSurface : clear selection
+    GlobalSurface --> MissionSelected : select mission
+    MissionSelected --> GlobalSurface : clear selection
+  }
+
+  Inspecting --> Planning : new/edit draft mission
+  Inspecting --> Validating : open completed result
+  Inspecting --> Searching : expand location search
+  Planning --> Inspecting : save/cancel
+  Validating --> Inspecting : close/finalize
+  Searching --> Inspecting : select proposition
+  Searching --> Inspecting : Escape / close
+}
+
+state Searching {
+  [*] --> Querying
+  Querying --> ShowingPropositions : input debounce completes
+  ShowingPropositions --> Previewing : pointer pauses
+  Previewing --> ShowingPropositions : pointer moves away
+  ShowingPropositions --> Previewing : pointer pauses
+  ShowingPropositions --> CommittingSelection : Enter / click
+  CommittingSelection --> Inspecting : selection committed
+  ShowingPropositions --> Querying : query changes
+}
+
+state Planning {
+  [*] --> EditingRoute
+  EditingRoute --> ConfiguringMission : route valid
+  ConfiguringMission --> EditingRoute : edit route
+  ConfiguringMission --> ReadyToSave : required fields valid
+  ReadyToSave --> EditingRoute : route changed
+  ReadyToSave --> Inspecting : save draft
+  Planning --> Inspecting : cancel
+}
+
+state Validating {
+  [*] --> ReviewingMeasurements
+  ReviewingMeasurements --> ReviewingCandidates : request supersession suggestions
+  ReviewingCandidates --> ReviewingMeasurements : accept/reject candidates
+  ReviewingMeasurements --> FinalizationReady : decisions complete
+  FinalizationReady --> ReviewingMeasurements : revise decisions
+  FinalizationReady --> ProjectionProcessing : finalize revision
+  ProjectionProcessing --> Inspecting : projection status visible
+  Validating --> Inspecting : cancel
+}
+
+note right of Workspace
+  URL state: data scope, selected mission,
+  geography, and map extent.
+  Local state: appearance preferences.
+end note
+@enduml

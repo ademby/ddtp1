@@ -1,0 +1,99 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MissionState {
+  DRAFT
+  PLANNED
+  DISPATCHED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum FailureReason {
+  MISSED_DISPATCH
+  EXECUTION_FAILED
+  DATA_INVALID
+}
+
+model Mission {
+  id               String          @id @default(cuid())
+  name             String
+  state            MissionState    @default(DRAFT)
+  droneId          String
+  earliestStart    DateTime
+  dispatchDeadline DateTime?
+  failureReason    FailureReason?
+  derivedFromId    String?
+  derivedFrom      Mission?        @relation("DerivedMissions", fields: [derivedFromId], references: [id])
+  derivedMissions  Mission[]       @relation("DerivedMissions")
+  activeRouteId    String?         @unique
+  activeRoute      RouteRevision?  @relation("ActiveRoute", fields: [activeRouteId], references: [id])
+  routeHistory     RouteRevision[] @relation("MissionRoutes")
+  idempotencies    IdempotencyKey[]
+  result           MissionResult?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model RouteRevision {
+  id        String   @id @default(cuid())
+  revision  Int
+  geometry  Json
+  createdAt DateTime @default(now())
+  missionId String
+  mission   Mission  @relation("MissionRoutes", fields: [missionId], references: [id], onDelete: Cascade)
+  activeFor Mission? @relation("ActiveRoute")
+  @@unique([missionId, revision])
+}
+
+model MissionResult {
+  id               String          @id @default(cuid())
+  missionId        String          @unique
+  mission          Mission         @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  deviceId         String
+  uploadedAt       DateTime        @default(now())
+  measurements     Measurement[]
+  activeRevisionId String?         @unique
+  activeRevision   ResultRevision? @relation("ActiveRevision", fields: [activeRevisionId], references: [id])
+  revisionHistory  ResultRevision[] @relation("ResultRevisions")
+}
+
+model Measurement {
+  id         String        @id @default(cuid())
+  resultId   String
+  result     MissionResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  capturedAt DateTime
+  longitude  Float
+  latitude   Float
+  source     String
+  kpis       Json
+  createdAt  DateTime      @default(now())
+}
+
+model ResultRevision {
+  id                  String        @id @default(cuid())
+  resultId            String
+  result              MissionResult @relation("ResultRevisions", fields: [resultId], references: [id], onDelete: Cascade)
+  revision            Int
+  rejectedMeasurementIds Json       @default("[]")
+  finalizedAt         DateTime?
+  createdAt           DateTime      @default(now())
+  activeFor           MissionResult? @relation("ActiveRevision")
+  @@unique([resultId, revision])
+}
+
+model IdempotencyKey {
+  key       String   @id
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}

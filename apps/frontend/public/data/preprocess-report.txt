@@ -1,0 +1,22 @@
+ADMINISTRATIVE HIERARCHY PREPROCESSING
+==========================================
+
+Summary
+-------
+Sure guesses:     0
+Manual review:    2
+Invalid overrides: 0
+
+MANUAL REVIEW (< 80%)
+---------------------
+ADM3 52573787B93907843070528 (ياسمين الحمامات)
+    Failed while resolving ADM2 parent.
+    Known path: ADM0:Tunisia -> ADM1:Sousse
+    No candidate parent found at this level.
+
+ADM3 52573787B14057940303309 (Téboulba)
+    Failed while resolving ADM2 parent.
+    Known path: ADM0:Tunisia -> ADM1:Monastir
+    Best candidates:
+      1. ADM2 11933810B19311233217993 (البقالطة) coverage=53.7065%
+      2. ADM2 11933810B49609226357839 (طبلبة) coverage=46.2935%

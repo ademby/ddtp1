@@ -1,0 +1,76 @@
+{
+  "status": "manual-review-required",
+  "summary": {
+    "sureGuesses": 0,
+    "manualReview": 2,
+    "invalidOverrides": 0
+  },
+  "sureGuesses": [],
+  "manualReview": [],
+  "invalidOverrides": [],
+  "manualResolved": [
+    {
+      "child": {
+        "level": 3,
+        "id": "52573787B93907843070528",
+        "name": "ياسمين الحمامات"
+      },
+      "status": "manual_review",
+      "failedLevel": 2,
+      "candidateParentLevel": 2,
+      "bestCoverageRatio": null,
+      "candidates": [],
+      "knownPath": [
+        {
+          "level": 0,
+          "id": "74400859B135783422298",
+          "name": "Tunisia"
+        },
+        {
+          "level": 1,
+          "id": "13205935B49970022939178",
+          "name": "Sousse"
+        }
+      ],
+      "message": null
+    },
+    {
+      "child": {
+        "level": 3,
+        "id": "52573787B14057940303309",
+        "name": "Téboulba"
+      },
+      "status": "manual_review",
+      "failedLevel": 2,
+      "candidateParentLevel": 2,
+      "bestCoverageRatio": 0.5370651057018265,
+      "candidates": [
+        {
+          "level": 2,
+          "id": "11933810B19311233217993",
+          "name": "البقالطة",
+          "coverageRatio": 0.5370651057018265
+        },
+        {
+          "level": 2,
+          "id": "11933810B49609226357839",
+          "name": "طبلبة",
+          "coverageRatio": 0.462934894298174
+        }
+      ],
+      "knownPath": [
+        {
+          "level": 0,
+          "id": "74400859B135783422298",
+          "name": "Tunisia"
+        },
+        {
+          "level": 1,
+          "id": "13205935B50453639335401",
+          "name": "Monastir"
+        }
+      ],
+      "message": null
+    }
+  ]
+}

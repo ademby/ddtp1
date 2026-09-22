@@ -1,0 +1,23 @@
+{
+  "name": "@drone-drive/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./mission": {
+      "types": "./src/mission.ts",
+      "default": "./src/mission.ts"
+    },
+    "./mission-result": {
+      "types": "./src/mission-result.ts",
+      "default": "./src/mission-result.ts"
+    },
+    "./signal-quality": {
+      "types": "./src/signal-quality.ts",
+      "default": "./src/signal-quality.ts"
+    }
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit"
+  }
+}

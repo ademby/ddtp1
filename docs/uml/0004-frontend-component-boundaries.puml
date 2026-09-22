@@ -1,0 +1,55 @@
+@startuml
+skinparam componentStyle rectangle
+
+package "Frontend application" {
+  [Composition root] as Root
+  [Operations panel shell] as Shell
+  [Mission operations view] as Planning
+  [Result validation view] as Validation
+  [Heatmap operations view] as Analysis
+  [Location search view] as Search
+  [Navigation workflow] as Navigation
+  [Mission workflow] as Mission
+  [Heatmap workflow] as Heatmap
+  [Map rendering boundary] as Rendering
+  [Mission API adapter] as MissionApi
+  [Result API adapter] as ResultApi
+  [Projection API adapter] as ProjectionApi
+  [Local appearance preferences] as Preferences
+}
+
+cloud "Backend /api/v1" as Backend
+
+Root --> Shell
+Root --> Navigation
+Root --> Mission
+Root --> Heatmap
+Shell --> Planning
+Shell --> Validation
+Shell --> Analysis
+Navigation --> Search
+Navigation --> Rendering
+Mission --> Rendering
+Mission --> MissionApi
+Validation --> ResultApi
+Heatmap --> ProjectionApi
+Heatmap --> Preferences
+Rendering --> Preferences
+
+MissionApi --> Backend
+ResultApi --> Backend
+ProjectionApi --> Backend
+
+note right of Rendering
+  Owns map layers, numeric tile source,
+  WebGL palette updates, hover values,
+  version switching, and CPU fallback.
+  Application tests do not depend on
+  OpenLayers internals.
+end note
+
+note bottom of Backend
+  The browser consumes typed contracts.
+  It never communicates directly with a drone.
+end note
+@enduml

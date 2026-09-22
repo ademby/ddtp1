@@ -1,0 +1,53 @@
+@startuml
+skinparam componentStyle rectangle
+
+package "Map rendering boundary" {
+  [Map controller] as MapController
+  [Stable layer registry] as Layers
+  [Surface tile layer] as SurfaceLayer
+  [Measurement vector layer] as MeasurementLayer
+  [Mission route layer] as MissionLayer
+  [Geography layer] as GeographyLayer
+  [Drone layer] as DroneLayer
+  [Hover inspector] as Hover
+  [Appearance controller] as Appearance
+}
+
+package "OpenLayers implementation" {
+  [WebGLTileLayer] as WebGL
+  [DataTileSource] as DataTiles
+  [VectorLayer / VectorSource] as Vectors
+  [Tile and browser cache] as Cache
+}
+
+MapController --> Layers
+Layers --> SurfaceLayer
+Layers --> MeasurementLayer
+Layers --> MissionLayer
+Layers --> GeographyLayer
+Layers --> DroneLayer
+
+SurfaceLayer --> WebGL
+WebGL --> DataTiles
+DataTiles --> Cache
+MeasurementLayer --> Vectors
+MissionLayer --> Vectors
+GeographyLayer --> Vectors
+DroneLayer --> Vectors
+
+Hover --> SurfaceLayer : getData(pixel)
+Hover --> MeasurementLayer : bounded feature inspection
+Appearance --> SurfaceLayer : palette / thresholds / opacity
+Appearance --> MeasurementLayer : point radius
+
+note right of DataTiles
+  Backend returns normalized numeric data.
+  Projection version is part of the cache key.
+  Palette changes do not refetch tiles.
+end note
+
+note bottom of SurfaceLayer
+  CPU fallback may replace WebGL rendering,
+  but the application-facing boundary stays stable.
+end note
+@enduml

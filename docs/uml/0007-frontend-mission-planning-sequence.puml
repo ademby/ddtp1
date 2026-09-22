@@ -1,0 +1,42 @@
+@startuml
+autonumber
+
+actor Operator
+participant "Operations panel" as Workspace
+participant "Mission workflow" as Planning
+participant "Map rendering boundary" as Map
+participant "Mission API adapter" as Api
+participant "Backend contract" as Backend
+
+Operator -> Workspace: Start new mission
+Workspace -> Planning: Enter planning mode
+Planning -> Map: Enable route drawing
+Operator -> Map: Draw route
+Map --> Planning: Candidate geometry
+
+Planning -> Planning: Validate route and required fields
+Planning -> Map: Show route revision preview
+Operator -> Planning: Save draft
+Planning -> Api: create(command)
+Api -> Backend: POST mission
+Backend --> Api: Draft mission + route revision
+Api --> Planning: Mission
+Planning -> Map: Display saved route
+Planning --> Workspace: Return to inspection
+
+Operator -> Workspace: Edit draft mission
+Workspace -> Planning: Load mission
+Planning -> Map: Enable modify/translate
+Operator -> Map: Change route
+Map --> Planning: New geometry
+Planning -> Api: updateDraft(command)
+Api -> Backend: PATCH draft mission
+Backend --> Api: New immutable route revision
+Api --> Planning: Updated mission
+
+Operator -> Workspace: Plan mission
+Workspace -> Api: plan(id, idempotencyKey)
+Api -> Backend: Guarded plan command
+Backend --> Api: Planned mission
+Api --> Workspace: Planned state
+@enduml

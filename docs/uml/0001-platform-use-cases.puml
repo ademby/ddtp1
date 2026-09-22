@@ -1,0 +1,45 @@
+@startuml
+left to right direction
+
+actor Operator
+actor Drone
+
+rectangle "Drone Drive-Test Platform" {
+  usecase "Plan mission" as Plan
+  usecase "Edit route revision" as EditRoute
+  usecase "Schedule mission" as Schedule
+  usecase "Assign drone" as Assign
+  usecase "Monitor execution" as Monitor
+  usecase "Validate mission result" as Validate
+  usecase "Finalize result revision" as Finalize
+  usecase "Explore approved global surface" as Explore
+  usecase "Inspect measurements" as Inspect
+  usecase "View drone status" as DroneStatus
+
+  usecase "Claim planned mission" as Claim
+  usecase "Report execution status" as Report
+  usecase "Upload mission result" as Upload
+}
+
+Operator --> Plan
+Operator --> EditRoute
+Operator --> Schedule
+Operator --> Assign
+Operator --> Monitor
+Operator --> Validate
+Operator --> Finalize
+Operator --> Explore
+Operator --> Inspect
+Operator --> DroneStatus
+
+Drone --> Claim
+Drone --> Report
+Drone --> Upload
+
+Plan .> EditRoute : <<include>>
+Plan .> Schedule : <<include>>
+Plan .> Assign : <<include>>
+Validate .> Finalize : <<extend>>
+Explore .> Inspect : <<extend>>
+Monitor .> DroneStatus : <<extend>>
+@enduml

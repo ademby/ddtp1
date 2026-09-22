@@ -1,0 +1,29 @@
+@startuml
+autonumber
+
+actor Operator
+participant "Location search view" as Search
+participant "Local geography index" as Index
+participant "Navigation workflow" as Navigation
+participant "Map rendering boundary" as Map
+
+Operator -> Search: Expand search
+Operator -> Search: Type query
+Search -> Search: Debounce input
+Search -> Index: Search names, aliases, codes, and paths
+Index --> Search: Ordered propositions
+Search --> Operator: Show full-path propositions
+
+Operator -> Search: Pause pointer on proposition
+Search -> Navigation: Begin temporary preview
+Navigation -> Navigation: Save committed navigation state
+Navigation -> Map: Preview region, layers, breadcrumbs, extent
+Operator -> Search: Move pointer away
+Search -> Navigation: End temporary preview
+Navigation -> Map: Restore saved navigation state with hop
+
+Operator -> Search: Click proposition / press Enter
+Search -> Navigation: Commit region selection
+Navigation -> Map: Select region, update layers/breadcrumbs, choose transition, fit view
+Search --> Operator: Close proposition list
+@enduml
