@@ -68,15 +68,15 @@ model MissionResult {
 }
 
 model Measurement {
-  id         String        @id @default(cuid())
-  resultId   String
-  result     MissionResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
-  capturedAt DateTime
-  longitude  Float
-  latitude   Float
-  source     String
-  kpis       Json
-  createdAt  DateTime      @default(now())
+  id              String        @id @default(cuid())
+  resultId        String
+  result          MissionResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  capturedAt      DateTime
+  longitude       Float
+  latitude        Float
+  source          String
+  rawObservations Json
+  createdAt       DateTime      @default(now())
 }
 
 model ResultRevision {
