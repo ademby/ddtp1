@@ -79,7 +79,7 @@ interface MeasurementSeed {
   readonly longitude: number;
   readonly latitude: number;
   readonly source: string;
-  readonly kpis: { signalQuality: number };
+  readonly rawObservations: { signalQuality: number };
 }
 
 /**
@@ -117,7 +117,7 @@ function measurementsAlongRoute(
         longitude: Number((lon0 + (lon1 - lon0) * t + jitterMeters / mPerLon).toFixed(6)),
         latitude: Number((lat0 + (lat1 - lat0) * t + jitterMeters / METERS_PER_DEG_LAT).toFixed(6)),
         source: "onboard-gnss",
-        kpis: { signalQuality: Math.round(value * 100) / 100 },
+        rawObservations: { signalQuality: Math.round(value * 100) / 100 },
       });
       distIntoSeg += stepMeters;
     }
@@ -177,7 +177,7 @@ async function createMission(options: {
           longitude: measurement.longitude,
           latitude: measurement.latitude,
           source: measurement.source,
-          kpis: measurement.kpis,
+          rawObservations: measurement.rawObservations,
         })),
       },
     },
@@ -233,7 +233,7 @@ try {
   // A handful of low-quality readings rejected on review, rest approved and finalized.
   const rejectedDriveTest = driveTestMeasurements
     .map((measurement, index) => ({ measurement, index }))
-    .filter(({ measurement }) => measurement.kpis.signalQuality < 35)
+    .filter(({ measurement }) => measurement.rawObservations.signalQuality < 35)
     .slice(0, 15)
     .map(({ index }) => `prototype-drive-test-m-${String(index + 1).padStart(5, "0")}`);
 

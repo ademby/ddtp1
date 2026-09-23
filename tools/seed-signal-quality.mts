@@ -152,7 +152,7 @@ try {
         longitude: Number(m.coordinates[0]),
         latitude: Number(m.coordinates[1]),
         source: "prototype-synthetic",
-        kpis: {
+        rawObservations: {
           signalQuality: Number(m.value),
         },
       })),

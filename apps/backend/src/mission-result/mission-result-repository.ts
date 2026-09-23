@@ -88,7 +88,7 @@ export class PrismaMissionResultRepository implements MissionResultApi {
               longitude: measurement.longitude,
               latitude: measurement.latitude,
               source: measurement.source,
-              kpis: JSON.parse(JSON.stringify(measurement.rawObservations)),
+              rawObservations: JSON.parse(JSON.stringify(measurement.rawObservations)),
             })),
           },
         },
@@ -179,7 +179,7 @@ export class PrismaMissionResultRepository implements MissionResultApi {
       longitude: value.longitude,
       latitude: value.latitude,
       source: value.source,
-      rawObservations: value.kpis as Record<string, number>,
+      rawObservations: value.rawObservations as Record<string, number>,
     };
   }
 
