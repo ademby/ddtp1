@@ -8,7 +8,6 @@ import { ApiError } from "../common/api-error.js";
 import { PrismaService } from "../common/prisma.service.js";
 import type { MissionId } from "@drone-drive/contracts/mission";
 import type {
-  ApprovedMeasurement,
   Measurement,
   MeasurementId,
   MissionResult,
@@ -89,7 +88,7 @@ export class PrismaMissionResultRepository implements MissionResultApi {
               longitude: measurement.longitude,
               latitude: measurement.latitude,
               source: measurement.source,
-              kpis: JSON.parse(JSON.stringify(measurement.kpis)),
+              kpis: JSON.parse(JSON.stringify(measurement.rawObservations)),
             })),
           },
         },
@@ -141,7 +140,7 @@ export class PrismaMissionResultRepository implements MissionResultApi {
 
   async approvedMeasurements(
     missionId: MissionId,
-  ): Promise<readonly ApprovedMeasurement[]> {
+  ): Promise<readonly Measurement[]> {
     const result = await this.get(missionId);
     if (!result.activeRevision?.finalizedAt) return [];
     const rejected = new Set(
@@ -180,7 +179,7 @@ export class PrismaMissionResultRepository implements MissionResultApi {
       longitude: value.longitude,
       latitude: value.latitude,
       source: value.source,
-      kpis: value.kpis as Record<string, number>,
+      rawObservations: value.kpis as Record<string, number>,
     };
   }
 

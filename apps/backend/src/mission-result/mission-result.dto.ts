@@ -19,7 +19,7 @@ export class UploadMeasurementDto {
   source!: string;
 
   @IsObject()
-  kpis!: Record<string, number>;
+  rawObservations!: Record<string, number>;
 }
 
 export class UploadMissionResultDto {

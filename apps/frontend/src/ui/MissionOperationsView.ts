@@ -218,7 +218,7 @@ export class MissionOperationsView {
     for (let i = 0; i < result.measurements.length; i += 1) {
       if (token !== this.renderToken) return;
       const measurement = result.measurements[i];
-      const kpis = Object.entries(measurement.kpis).map(([key, value]) => `${key}: ${value}`).join(', ');
+      const kpis = Object.entries(measurement.rawObservations).map(([key, value]) => `${key}: ${value}`).join(', ');
       const row = document.createElement('li');
       row.className = 'result-measurement';
       row.dataset.id = measurement.id;

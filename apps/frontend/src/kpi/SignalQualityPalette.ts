@@ -62,20 +62,20 @@ export const SIGNAL_QUALITY_KPI_KEY = "signalQuality";
 export function colorMeasurementsBySignalQuality<
   T extends {
     readonly id: string;
-    readonly kpis: Readonly<Record<string, number>>;
+    readonly rawObservations: Readonly<Record<string, number>>;
   },
 >(
   measurements: readonly T[],
   palette: SignalQualityPalette = DEFAULT_SIGNAL_QUALITY_PALETTE,
 ): Map<string, string> {
   const values = measurements.map(
-    (measurement) => measurement.kpis[SIGNAL_QUALITY_KPI_KEY] ?? 0,
+    (measurement) => measurement.rawObservations[SIGNAL_QUALITY_KPI_KEY] ?? 0,
   );
   const min = values.length ? Math.min(...values) : 0;
   const max = values.length ? Math.max(...values) : 0;
   const colors = new Map<string, string>();
   for (const measurement of measurements) {
-    const value = measurement.kpis[SIGNAL_QUALITY_KPI_KEY] ?? 0;
+    const value = measurement.rawObservations[SIGNAL_QUALITY_KPI_KEY] ?? 0;
     colors.set(
       measurement.id,
       sampleSignalQualityPalette(palette, value, min, max),

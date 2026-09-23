@@ -142,7 +142,7 @@ export class SignalQualityService {
     const buckets = new Map<number, ApprovedPoint[]>();
 
     for (const measurement of measurements) {
-      const value = measurement.kpis[KPI_KEY];
+      const value = measurement.rawObservations[KPI_KEY];
       if (typeof value !== "number" || !Number.isFinite(value)) continue;
 
       const point: ApprovedPoint = {

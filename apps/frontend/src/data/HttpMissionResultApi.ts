@@ -1,5 +1,5 @@
 import type {
-  ApprovedMeasurement, MissionResult, MissionResultApi, ReviewResultRevisionCommand, UploadMissionResultCommand,
+  Measurement, MissionResult, MissionResultApi, ReviewResultRevisionCommand, UploadMissionResultCommand,
 } from '@drone-drive/contracts/mission-result';
 import type { MissionId } from '@drone-drive/contracts/mission';
 
@@ -18,7 +18,7 @@ export class HttpMissionResultApi implements MissionResultApi {
     return this.request('POST', `/missions/${encodeURIComponent(missionId)}/result/revisions`, command, key);
   }
 
-  async approvedMeasurements(missionId: MissionId): Promise<readonly ApprovedMeasurement[]> {
+  async approvedMeasurements(missionId: MissionId): Promise<readonly Measurement[]> {
     return this.request('GET', `/missions/${encodeURIComponent(missionId)}/result/approved-measurements`);
   }
 
