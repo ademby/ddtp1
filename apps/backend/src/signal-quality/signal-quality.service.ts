@@ -6,12 +6,10 @@ import type {
   SignalQualityRange,
   SignalQualityTileCoord,
 } from "@drone-drive/contracts/signal-quality";
+import { signalQualityConfig } from "./signal-quality.config.js";
 
 const KPI_KEY = "signalQuality";
 export const TILE_RESOLUTION = SIGNAL_QUALITY_GRID_SIZE;
-
-const POINTS_TTL_MS = 5000;
-const MAX_CACHED_TILES = 2000;
 
 const DEG_TO_RAD = Math.PI / 180;
 const METERS_PER_DEGREE = 111320;
@@ -20,24 +18,6 @@ const BUCKET_SIZE_DEG = 0.01;
 const BUCKET_LON_OFFSET = 18000;
 const BUCKET_LAT_OFFSET = 9000;
 const BUCKET_LAT_STRIDE = 20000;
-
-const DEFAULT_RADIUS_BY_ZOOM: Record<number, number> = {
-  5: 12000,
-  6: 10000,
-  7: 8000,
-  8: 6000,
-  9: 4500,
-  10: 3000,
-  11: 2200,
-  12: 1500,
-  13: 1000,
-  14: 700,
-  15: 500,
-  16: 350,
-  17: 250,
-  18: 180,
-  19: 140,
-};
 
 interface ApprovedPoint {
   readonly longitude: number;
@@ -175,14 +155,14 @@ export class SignalQualityService {
       points,
       buckets,
       version,
-      expiresAt: now + POINTS_TTL_MS,
+      expiresAt: now + signalQualityConfig.pointsTtlMs,
     };
 
     return this.pointsSnapshot;
   }
 
   private cacheTile(key: string, grid: Float32Array): void {
-    if (this.tileCache.size >= MAX_CACHED_TILES) {
+    if (this.tileCache.size >= signalQualityConfig.maxCachedTiles) {
       const oldestKey = this.tileCache.keys().next().value;
       if (oldestKey !== undefined) this.tileCache.delete(oldestKey);
     }
@@ -298,8 +278,9 @@ function bucketKey(bx: number, by: number): number {
 }
 
 function radiusForZoom(z: number): number {
-  if (DEFAULT_RADIUS_BY_ZOOM[z]) return DEFAULT_RADIUS_BY_ZOOM[z];
-  return z < 5 ? 12000 : 140;
+  const table = signalQualityConfig.radiusByZoom;
+  if (table[z] !== undefined) return table[z];
+  return z < 5 ? 12_000 : 140;
 }
 
 function tileExtent3857(

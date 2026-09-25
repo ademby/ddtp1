@@ -67,15 +67,15 @@ MapController    does not  know individual workflows exist
 
 ## Ownership of state
 
-| State | Owner |
-|---|---|
-| Mission list, selected mission, edit mode | `MissionWorkflow` |
-| Heatmap visibility, loaded dataset, palette | `HeatmapWorkflow` |
-| Admin navigation tree, selected node, path | `NavigationWorkflow` |
-| OL `Map` instance, basemap, view animations | `MapController` |
-| Raw approved measurements (server-side) | `MissionResultModule` |
-| Signal Quality tile version/range | `SignalQualityModule` |
-| KPI palette (client presentation) | `HeatmapWorkflow` — never sent to backend |
+| State                                       | Owner                                     |
+| ------------------------------------------- | ----------------------------------------- |
+| Mission list, selected mission, edit mode   | `MissionWorkflow`                         |
+| Heatmap visibility, loaded dataset, palette | `HeatmapWorkflow`                         |
+| Admin navigation tree, selected node, path  | `NavigationWorkflow`                      |
+| OL `Map` instance, basemap, view animations | `MapController`                           |
+| Raw approved measurements (server-side)     | `MissionResultModule`                     |
+| Signal Quality tile version/range           | `SignalQualityModule`                     |
+| KPI palette (client presentation)           | `HeatmapWorkflow` — never sent to backend |
 
 ---
 
@@ -98,12 +98,12 @@ Until those tickets run, the `*MapWorkspace` adapter objects in `CompositionRoot
 
 ## Contract vs domain types
 
-| Layer | What lives here |
-|---|---|
-| `packages/contracts/` | Cross-boundary API shapes: request/response DTOs, IDs, enum literals. These are the only types shared between frontend and backend. |
-| Backend feature module internals | Domain entities (Prisma-backed), service types, event payloads — never exported across the module boundary. |
-| Frontend workflow internals | `*MapWorkspace`, `*DataSource`, `*Renderer` interfaces — private to the workflow file unless another workflow explicitly depends on them. |
-| Frontend `domain/` | Client-side value objects (`AdminNode`, ID wrappers) independent of any framework. |
+| Layer                            | What lives here                                                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/contracts/`            | Cross-boundary API shapes: request/response DTOs, IDs, enum literals. These are the only types shared between frontend and backend.       |
+| Backend feature module internals | Domain entities (Prisma-backed), service types, event payloads — never exported across the module boundary.                               |
+| Frontend workflow internals      | `*MapWorkspace`, `*DataSource`, `*Renderer` interfaces — private to the workflow file unless another workflow explicitly depends on them. |
+| Frontend `domain/`               | Client-side value objects (`AdminNode`, ID wrappers) independent of any framework.                                                        |
 
 OpenLayers types must not leak into workflow interface signatures. Backend Prisma types must not leak outside the repository class that owns them.
 
@@ -111,15 +111,18 @@ OpenLayers types must not leak into workflow interface signatures. Backend Prism
 
 ## Configuration responsibilities
 
-| Concern | Owner | Location |
-|---|---|---|
-| KPI renderer selection (`canvas` / `webgl`) | Frontend build config | `ui.config.ts` — `kpiRenderer: 'canvas' \| 'webgl'` |
-| Canvas worker pool size | Frontend build config | `ui.config.ts` — `workerPoolSize: number` (default 1) |
-| API base URL | Runtime env | `VITE_API_BASE_URL` |
-| Tile cache parameters, interpolation | Backend domain config | `SignalQualityModule` internals |
-| Feature flags, domain defaults | Backend application config | per-module, not global |
+| Concern                                      | Owner                     | Location                                                                                        |
+| -------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| KPI renderer selection (`canvas` / `webgl`)  | Frontend product defaults | `apps/frontend/src/ui.config.ts` — `kpiRenderer`                                                |
+| Canvas worker pool size (planned seam)       | Frontend product defaults | `apps/frontend/src/ui.config.ts` — `workerPoolSize`                                             |
+| Display tile size / max zoom                 | Frontend product defaults | `apps/frontend/src/ui.config.ts` — `tileSize`, `maxZoom`                                        |
+| Default Signal Quality palette               | Presentation module       | `SignalQualityPalette.ts` — `DEFAULT_SIGNAL_QUALITY_PALETTE` (runtime owner: `HeatmapWorkflow`) |
+| Numeric grid resolution (protocol)           | Shared contracts          | `packages/contracts` — `SIGNAL_QUALITY_GRID_SIZE`                                               |
+| Projection radii, points TTL, tile cache cap | Backend domain config     | `apps/backend/src/signal-quality/signal-quality.config.ts`                                      |
+| API base URL, database URL                   | Runtime env               | `VITE_API_BASE_URL`, `DATABASE_URL`                                                             |
+| Feature flags, other domain defaults         | Owning feature module     | per-module source config, not a global bag                                                      |
 
-There is no global configuration object. Each responsible party reads only the slice it owns.
+There is no global configuration object. Each responsible party reads only the slice it owns. Environment variables remain for infrastructure/runtime; product/rendering defaults live in typed source modules.
 
 ---
 
@@ -140,8 +143,9 @@ Two concrete adapters exist behind a single `KpiRenderer`-shaped interface:
 ```
 HeatmapWorkflow
   └── renderer: HeatmapRenderer
-        ├── SignalQualityVisualizer        (Canvas/worker path, current default)
-        └── SignalQualityVisualizer_ForWebGL  (WebGL path, retained for future use)
+        └── SignalQualityVisualizer
+              ├── SignalQualityTileSource (Canvas/worker path, current default)
+              └── SignalQualityTileSource_FORWebGL (WebGL path, retained for future use)
 ```
 
 Selection is static: `ui.config.ts` `kpiRenderer` flag. There is no runtime toggle exposed to the operator — WebGL output quality is not operator-ready.

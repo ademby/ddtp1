@@ -1,22 +1,23 @@
 import type Feature from "ol/Feature.js";
-import type { Coordinate } from "ol/coordinate.js";
 import Map from "ol/Map.js";
 import View from "ol/View.js";
-import { getCenter } from "ol/extent.js";
+import type { Coordinate } from "ol/coordinate.js";
+import { easeOut, inAndOut } from "ol/easing.js";
 import type { Extent } from "ol/extent.js";
-import { inAndOut, easeOut } from "ol/easing.js";
+import { getCenter } from "ol/extent.js";
 import type BaseLayer from "ol/layer/Base.js";
+import Layer from "ol/layer/Layer.js";
 import TileLayer from "ol/layer/Tile.js";
 import VectorLayer from "ol/layer/Vector.js";
-import type Projection from "ol/proj/Projection.js";
-import VectorSource from "ol/source/Vector.js";
-import type ImageTileSource from "ol/source/ImageTile.js";
-import type DataTileSource from "ol/source/DataTile.js";
 import WebGLTileLayer from "ol/layer/WebGLTile.js";
+import type Projection from "ol/proj/Projection.js";
+import TileSource from "ol/source/Tile.js";
+import VectorSource from "ol/source/Vector.js";
 import {
   DEFAULT_SIGNAL_QUALITY_PALETTE,
   type SignalQualityPalette,
 } from "../kpi/SignalQualityPalette.js";
+import { uiConfig } from "../ui.config.js";
 import { BasemapManager } from "./BasemapManager.js";
 import {
   activeStyle,
@@ -42,9 +43,7 @@ export class MapController {
   readonly hoverLayer: VectorLayer<VectorSource>;
   readonly missionLayer: VectorLayer<VectorSource>;
   readonly measurementLayer: VectorLayer<VectorSource>;
-  readonly kpiLayer: TileLayer<ImageTileSource>;
-  /* WEBGL STUFF*/
-  // readonly kpiLayer: WebGLTileLayer;
+  readonly kpiLayer: Layer;
   private kpiPalette: SignalQualityPalette = DEFAULT_SIGNAL_QUALITY_PALETTE;
   private kpiMin = 0;
   private kpiMax = 100;
@@ -82,41 +81,42 @@ export class MapController {
       zIndex: 55,
     });
 
-    this.kpiLayer = new TileLayer({
-      zIndex: 45,
-      opacity: 0.78,
-      visible: false,
-      cacheSize: 1024,
-    });
-    /* WEBGL STUFF */
-    // this.kpiLayer = new WebGLTileLayer({
-    //   zIndex: 45,
-    //   opacity: 0.78,
-    //   visible: false,
-    //   cacheSize: 1024,
-    //   // style: this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
-    //   style: {
-    //     variables: {
-    //       kpiMin: 0.01,
-    //       kpiMax: 0.02,
-    //     },
-    //     color: [
-    //       "case",
-    //       ["==", ["band", 2], 0],
-    //       [0, 0, 0, 0],
+    this.kpiLayer =
+      uiConfig.kpiRenderer === "canvas"
+        ? new TileLayer({
+            zIndex: 45,
+            opacity: 0.78,
+            visible: false,
+            cacheSize: 1024,
+          })
+        : new WebGLTileLayer({
+            zIndex: 45,
+            opacity: 0.78,
+            visible: false,
+            cacheSize: 1024,
+            // style: this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
+            style: {
+              variables: {
+                kpiMin: 0.01,
+                kpiMax: 0.02,
+              },
+              color: [
+                "case",
+                ["==", ["band", 2], 0],
+                [0, 0, 0, 0],
 
-    //       [
-    //         "interpolate",
-    //         ["linear"],
-    //         ["band", 1],
-    //         ["var", "kpiMin"],
-    //         [0, 0, 0, 1],
-    //         ["var", "kpiMax"],
-    //         [255, 255, 255, 1],
-    //       ],
-    //     ],
-    //   },
-    // });
+                [
+                  "interpolate",
+                  ["linear"],
+                  ["band", 1],
+                  ["var", "kpiMin"],
+                  [0, 0, 0, 1],
+                  ["var", "kpiMax"],
+                  [255, 255, 255, 1],
+                ],
+              ],
+            },
+          });
 
     this.map = new Map({
       target,
@@ -134,15 +134,11 @@ export class MapController {
     });
   }
 
-  setKpiSource(source: ImageTileSource): void {
+  setKpiSource(source: TileSource): void {
     this.kpiLayer.setSource(source);
   }
-  /* WEBGL Stuff */
-  // setKpiSource(source: DataTileSource): void {
-  //   this.kpiLayer.setSource(source);
-  // }
 
-  /* WEBGL Stuff */
+  /* WEBGL Stuff */ // refactor [put in corresponding workflow]
   private buildKpiStyle(
     min: number,
     max: number,
@@ -170,23 +166,25 @@ export class MapController {
 
   setKpiPalette(palette: SignalQualityPalette): void {
     this.kpiPalette = palette;
-    /* WebGL STUFF*/
-    // this.kpiLayer.setStyle(
-    //   this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
-    // );
+    if (this.kpiLayer instanceof WebGLTileLayer) {
+      this.kpiLayer.setStyle(
+        this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
+      );
+    }
   }
 
   setKpiRange(min: number, max: number): void {
     this.kpiMin = min;
     this.kpiMax = max;
-    /* WebGL STUFF*/
-    // this.kpiLayer.setStyle(
-    //   this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
-    // );
-    // this.kpiLayer.updateStyleVariables({
-    //   kpiMin: min,
-    //   kpiMax: max,
-    // });
+    if (this.kpiLayer instanceof WebGLTileLayer) {
+      this.kpiLayer.setStyle(
+        this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
+      );
+      this.kpiLayer.updateStyleVariables({
+        kpiMin: min,
+        kpiMax: max,
+      });
+    }
   }
 
   setKpiVisible(visible: boolean): void {

@@ -4,13 +4,13 @@ import {
   SIGNAL_QUALITY_GRID_SIZE,
   signalQualityTilePath,
 } from "@drone-drive/contracts/signal-quality";
+import { uiConfig } from "../ui.config.js";
 import type { SignalQualityPalette } from "./SignalQualityPalette.js";
 
-const TILE_SIZE = 256;
 const GRID_SIZE = SIGNAL_QUALITY_GRID_SIZE;
 const TILE_GRID = createXYZ({
   tileSize: GRID_SIZE,
-  maxZoom: 19,
+  maxZoom: uiConfig.maxZoom,
 });
 const MAX_NUMERIC_TILES = 512;
 

@@ -9,7 +9,6 @@ import { MockMissionApi } from "../data/MockMissionApi";
 import type { SignalQualityPalette } from "../kpi/SignalQualityPalette";
 import SignalQualityService from "../kpi/SignalQualityService";
 import SignalQualityVisualizer from "../kpi/SignalQualityVisualizer";
-import SignalQualityVisualizer_ForWebGL from "../kpi/SignalQualityVisualizer_ForWebGL";
 import { MapController } from "../map/MapController";
 import type { NavigationState } from "../map/NavigationState";
 import { MeasurementReviewController } from "../mission/MeasurementReview";
@@ -108,16 +107,12 @@ export class CompositionRoot {
     const legend = new SignalQualityLegend();
     this.mapController.map.addControl(legend);
     legend.setRange(0, 100);
+    const apiBase = import.meta.env.VITE_API_BASE_URL;
     const visualizer = new SignalQualityVisualizer(
-      import.meta.env.VITE_API_BASE_URL,
+      apiBase,
       (palette) => this.mapController.setKpiPalette(palette),
+      (min, max) => this.mapController.setKpiRange(min, max),
     );
-    /* WEBGL Stuff / Experiments */
-    // const visualizer = new SignalQualityVisualizer_ForWebGL(
-    //   import.meta.env.VITE_API_BASE_URL,
-    //   (palette) => this.mapController.setKpiPalette(palette),
-    //   (min, max) => this.mapController.setKpiRange(min, max),
-    // );
     this.mapController.setKpiSource(visualizer.getSource());
     this.heatmapWorkflow = new HeatmapWorkflow({
       mapWorkspace: {
@@ -140,8 +135,10 @@ export class CompositionRoot {
       this.mapController.measurementLayer,
       this.mapController.getProjection(),
       {
-        onSelectionChange: (ids) => this.operationsPanel.setMeasurementSelection(ids),
-        onRejectedChange: (ids) => this.operationsPanel.setMeasurementRejection(ids),
+        onSelectionChange: (ids) =>
+          this.operationsPanel.setMeasurementSelection(ids),
+        onRejectedChange: (ids) =>
+          this.operationsPanel.setMeasurementRejection(ids),
       },
     );
     const missionEditor = new MissionEditor(
@@ -165,20 +162,31 @@ export class CompositionRoot {
       onCancelMission: () => void this.missionWorkflow.cancelMission(),
       onRetryMission: () => void this.missionWorkflow.retry(),
       onSaveReview: () =>
-        void this.missionWorkflow.saveReview(this.measurementReview.getRejectedIds(), false),
+        void this.missionWorkflow.saveReview(
+          this.measurementReview.getRejectedIds(),
+          false,
+        ),
       onFinalizeReview: () =>
         void (async () => {
-          const saved = await this.missionWorkflow.saveReview(this.measurementReview.getRejectedIds(), true);
+          const saved = await this.missionWorkflow.saveReview(
+            this.measurementReview.getRejectedIds(),
+            true,
+          );
           // Finalizing is what changes the approved-measurement set the heatmap reads; refresh
           // it now rather than leaving stale tiles until someone hits "Refresh data".
           if (saved) await this.heatmapWorkflow.refresh();
         })(),
-      onSelectMeasurement: (id: string, additive: boolean) => this.measurementReview.selectById(id, additive),
+      onSelectMeasurement: (id: string, additive: boolean) =>
+        this.measurementReview.selectById(id, additive),
       onSelectAllMeasurements: () => this.measurementReview.selectAll(),
-      onInvertMeasurementSelection: () => this.measurementReview.invertSelection(),
-      onClearMeasurementSelection: () => this.measurementReview.clearSelection(),
-      onApproveSelectedMeasurements: () => this.measurementReview.approveSelected(),
-      onRejectSelectedMeasurements: () => this.measurementReview.rejectSelected(),
+      onInvertMeasurementSelection: () =>
+        this.measurementReview.invertSelection(),
+      onClearMeasurementSelection: () =>
+        this.measurementReview.clearSelection(),
+      onApproveSelectedMeasurements: () =>
+        this.measurementReview.approveSelected(),
+      onRejectSelectedMeasurements: () =>
+        this.measurementReview.rejectSelected(),
       onToggleKpi: () => void this.heatmapWorkflow.toggle(),
       onRefreshKpi: () => void this.heatmapWorkflow.refresh(),
       onPaletteChange: (palette: SignalQualityPalette) => {

@@ -1,7 +1,9 @@
 import { DEFAULT_SIGNAL_QUALITY_PALETTE, paletteToWorkerStops } from "./SignalQualityPalette";
+import { uiConfig } from "../ui.config.js";
 
-const TILE_SIZE = 256;
+const TILE_SIZE = uiConfig.tileSize;
 const CELL_SIZE_DEG = 0.01;
+/** Offline/local IDW radii; production tiles use backend projection config. */
 const DEFAULT_RADIUS_BY_ZOOM: Record<number, number> = {
   5: 12000,
   6: 10000,
@@ -20,7 +22,6 @@ const DEFAULT_RADIUS_BY_ZOOM: Record<number, number> = {
   19: 140,
 };
 
-let values = new Float64Array();
 let min = 0;
 let max = 100;
 const LUT_SIZE = 1024;
@@ -31,15 +32,6 @@ let paletteLut = new Uint8Array(LUT_SIZE * 4);
 // `HeatmapWorkflow` pushes replacements via a `"palette"` message so edits repaint live.
 let stops: Array<[number, string]> = paletteToWorkerStops(DEFAULT_SIGNAL_QUALITY_PALETTE);
 buildPaletteLut();
-
-// Spatial buckets grouping measurements by geographic cell for fast nearby-point lookup.
-const buckets = new Map<string, number[]>();
-
-const occupiedTiles = new Set<string>();
-
-const OCCUPANCY_ZOOMS = [
-  4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-];
 
 self.onmessage = async (
   event: MessageEvent<
@@ -76,14 +68,14 @@ self.onmessage = async (
 };
 
 function createEmptyTile(): Promise<ImageBitmap> {
-  const canvas = new OffscreenCanvas(256, 256);
+  const canvas = new OffscreenCanvas(TILE_SIZE, TILE_SIZE);
   const ctx = canvas.getContext("2d");
 
   if (!ctx) {
     throw new Error("Could not create 2D context");
   }
 
-  ctx.clearRect(0, 0, 256, 256);
+  ctx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
 
   return createImageBitmap(canvas);
 }

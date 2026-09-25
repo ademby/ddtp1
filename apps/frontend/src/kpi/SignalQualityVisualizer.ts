@@ -1,19 +1,26 @@
+import TileSource from "ol/source/Tile.js";
+import { uiConfig } from "../ui.config.js";
 import type { SignalQualityDataset } from "./SignalQuality.js";
 import type { SignalQualityPalette } from "./SignalQualityPalette.js";
 import { SignalQualityTileSource } from "./SignalQualityTileSource.js";
+import SignalQualityTileSource_ForWebGL from "./SignalQualityTileSource_ForWebGL.js";
 
 export class SignalQualityVisualizer {
-  private readonly source: SignalQualityTileSource;
+  private readonly source: SignalQualityTileSource | SignalQualityTileSource_ForWebGL;
   private range = { min: 0, max: 100 };
 
   constructor(
     apiBaseUrl: string,
-    private readonly onPaletteChange?: (palette: SignalQualityPalette) => void,
+    private readonly onPaletteChange: (palette: SignalQualityPalette) => void,
+    private readonly onRangeChange?: (min: number, max: number) => void,
   ) {
-    this.source = new SignalQualityTileSource(apiBaseUrl);
+    this.source =
+      uiConfig.kpiRenderer === "canvas"
+        ? new SignalQualityTileSource(apiBaseUrl)
+        : new SignalQualityTileSource_ForWebGL(apiBaseUrl);
   }
 
-  getSource(): SignalQualityTileSource {
+  getSource(): TileSource {
     return this.source;
   }
 
@@ -24,6 +31,7 @@ export class SignalQualityVisualizer {
       dataset.max,
       dataset.version ?? "unversioned",
     );
+    this.onRangeChange?.(dataset.min, dataset.max);
   }
 
   setPalette(palette: SignalQualityPalette): void {

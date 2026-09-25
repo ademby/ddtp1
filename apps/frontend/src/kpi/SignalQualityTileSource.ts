@@ -4,14 +4,18 @@ import {
   SIGNAL_QUALITY_GRID_SIZE,
   signalQualityTilePath,
 } from "@drone-drive/contracts/signal-quality";
+import { uiConfig } from "../ui.config.js";
 import {
   paletteToWorkerStops,
   type SignalQualityPalette,
 } from "./SignalQualityPalette.js";
 
-const TILE_SIZE = 256;
+const TILE_SIZE = uiConfig.tileSize;
 const GRID_SIZE = SIGNAL_QUALITY_GRID_SIZE;
-const TILE_GRID = createXYZ({ tileSize: TILE_SIZE, maxZoom: 19 });
+const TILE_GRID = createXYZ({
+  tileSize: TILE_SIZE,
+  maxZoom: uiConfig.maxZoom,
+});
 
 interface TileResult {
   type: "tile";
