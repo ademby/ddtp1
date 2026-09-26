@@ -1,7 +1,19 @@
-import type { MissionApi, Mission, MissionId, DroneId } from '@drone-drive/contracts/mission';
-import { droneId, missionId } from '../domain/missionIds.js';
-import type { MissionEditorMode } from '../mission/MissionEditor.js';
-import type { MissionResult, MissionResultApi } from '@drone-drive/contracts/mission-result';
+import type { MissionApi, Mission, MissionId, DroneId } from "@drone-drive/contracts/mission";
+import type { MissionResult, MissionResultApi } from "@drone-drive/contracts/mission-result";
+import LayerGroup from "ol/layer/Group.js";
+import VectorLayer from "ol/layer/Vector.js";
+import VectorSource from "ol/source/Vector.js";
+import { droneId, missionId } from "../domain/missionIds.js";
+import { MapController } from "../map/MapController.js";
+import { measurementStyle, missionStyle } from "../map/styles.js";
+import {
+  MissionEditor,
+  type MissionEditorMode,
+} from "../mission/MissionEditor.js";
+import {
+  MeasurementReviewController,
+  type MeasurementReviewCallbacks,
+} from "../mission/MeasurementReview.js";
 
 export interface MissionFormData {
   readonly name: string;
@@ -20,41 +32,26 @@ export interface MissionWorkflowView {
   setResultStatusMessage(message: string): void;
 }
 
-export interface MissionRouteEditor {
-  startNew(): void;
-  load(mission: Mission): void;
-  startDraw(): void;
-  startModify(): void;
-  startTranslate(): void;
-  undo(): void;
-  redo(): void;
-  stop(): void;
-  hasValidGeometry(): boolean;
-  getGeometry(): Mission['activeRoute']['geometry'];
-}
-
-export interface MissionMapWorkspace {
-  fitMission(id: MissionId): void;
-  clearMission(): void;
-  setEditorMode(mode: MissionEditorMode): void;
-  showMeasurements(result: MissionResult): void;
-  clearMeasurements(): void;
-}
-
 export interface MissionWorkflowOptions {
-  readonly mapWorkspace: MissionMapWorkspace;
+  readonly mapController: MapController;
   readonly missionApi: MissionApi;
   readonly missionResultApi?: MissionResultApi;
-  readonly missionEditor: MissionRouteEditor;
   readonly view: MissionWorkflowView;
   readonly setAdminSelectionEnabled: (enabled: boolean) => void;
+  readonly measurementCallbacks: MeasurementReviewCallbacks;
 }
 
+/**
+ * Mission application decisions. Owns route + measurement LayerGroup,
+ * MissionEditor, and MeasurementReview (ADR-0005 / R-07).
+ */
 export class MissionWorkflow {
-  private readonly mapWorkspace: MissionMapWorkspace;
+  private readonly mapController: MapController;
   private readonly missionApi: MissionApi;
   private readonly missionResultApi: MissionResultApi | undefined;
-  private readonly missionEditor: MissionRouteEditor;
+  private readonly missionEditor: MissionEditor;
+  private readonly measurementReview: MeasurementReviewController;
+  private readonly missionSource = new VectorSource();
   private readonly view: MissionWorkflowView;
   private readonly setAdminSelectionEnabled: (enabled: boolean) => void;
   private missions: Mission[] = [];
@@ -62,16 +59,49 @@ export class MissionWorkflow {
   private editingMissionId: MissionId | null = null;
 
   constructor(options: MissionWorkflowOptions) {
-    this.mapWorkspace = options.mapWorkspace;
+    this.mapController = options.mapController;
     this.missionApi = options.missionApi;
     this.missionResultApi = options.missionResultApi;
-    this.missionEditor = options.missionEditor;
     this.view = options.view;
     this.setAdminSelectionEnabled = options.setAdminSelectionEnabled;
+
+    const measurementSource = new VectorSource();
+    const missionLayer = new VectorLayer({
+      source: this.missionSource,
+      style: missionStyle,
+      zIndex: 50,
+    });
+    const measurementLayer = new VectorLayer({
+      source: measurementSource,
+      style: measurementStyle,
+      zIndex: 55,
+    });
+    this.mapController.map.addLayer(
+      new LayerGroup({ layers: [missionLayer, measurementLayer] }),
+    );
+
+    this.missionEditor = new MissionEditor(
+      this.mapController.map,
+      this.missionSource,
+      this.mapController.getProjection(),
+      (mode) => this.handleEditorMode(mode),
+    );
+    this.measurementReview = new MeasurementReviewController(
+      this.mapController.map,
+      measurementSource,
+      measurementLayer,
+      this.mapController.getProjection(),
+      options.measurementCallbacks,
+    );
+  }
+
+  /** Exposed for OperationsPanel measurement wiring. */
+  get review(): MeasurementReviewController {
+    return this.measurementReview;
   }
 
   async load(): Promise<void> {
-    this.missions = [...await this.missionApi.list()];
+    this.missions = [...(await this.missionApi.list())];
     this.renderMissionList();
   }
 
@@ -81,25 +111,25 @@ export class MissionWorkflow {
     this.editingMissionId = null;
     this.selectedMissionId = null;
     this.missionEditor.startNew();
-    this.mapWorkspace.clearMeasurements();
+    this.measurementReview.clear();
     const draft: Mission = {
-      id: missionId('draft'),
-      name: '',
-      state: 'DRAFT',
-      droneId: droneId('drone-alpha'),
+      id: missionId("draft"),
+      name: "",
+      state: "DRAFT",
+      droneId: droneId("drone-alpha"),
       earliestStart: now,
       dispatchDeadline: null,
       activeRoute: {
-        id: 'route-draft' as Mission['activeRoute']['id'],
+        id: "route-draft" as Mission["activeRoute"]["id"],
         revision: 0,
-        geometry: { type: 'LineString', coordinates: [] },
+        geometry: { type: "LineString", coordinates: [] },
         createdAt: now,
       },
       routeHistory: [],
       failureReason: null,
       derivedFrom: null,
     };
-    this.view.setEditor(draft, 'New mission');
+    this.view.setEditor(draft, "New mission");
     this.renderMissionList();
   }
 
@@ -110,48 +140,54 @@ export class MissionWorkflow {
     this.editingMissionId = mission.id;
     this.selectedMissionId = mission.id;
     this.missionEditor.load(mission);
-    this.mapWorkspace.clearMeasurements();
-    // Validation (reviewing an uploaded result) is a distinct screen from CRUD (editing a
-    // draft/planned mission): a mission only ever has a result once it's COMPLETED or FAILED.
-    if (mission.state === 'COMPLETED' || mission.state === 'FAILED') {
+    this.measurementReview.clear();
+    if (mission.state === "COMPLETED" || mission.state === "FAILED") {
       this.view.showReview(mission);
     } else {
-      this.view.setEditor(mission, 'Edit mission');
+      this.view.setEditor(mission, "Edit mission");
     }
     this.renderMissionList();
     if (mission.activeRoute.geometry.coordinates.length > 1) {
-      this.mapWorkspace.fitMission(mission.id);
+      this.fitMission(mission.id);
     }
     void this.loadResult(mission);
   }
 
   private async loadResult(mission: Mission): Promise<void> {
     if (!this.missionResultApi) return;
-    if (mission.state !== 'COMPLETED' && mission.state !== 'FAILED') return;
+    if (mission.state !== "COMPLETED" && mission.state !== "FAILED") return;
     try {
       const result = await this.missionResultApi.get(mission.id);
       if (this.editingMissionId !== mission.id) return;
       this.view.setResult(result);
-      this.mapWorkspace.showMeasurements(result);
+      this.measurementReview.load(result);
     } catch {
       if (this.editingMissionId === mission.id) this.view.setResult(null);
     }
   }
 
   /** Returns whether the revision was saved (callers may show advisory UI after finalize). */
-  async saveReview(rejectedMeasurementIds: readonly string[], finalize: boolean): Promise<boolean> {
+  async saveReview(
+    rejectedMeasurementIds: readonly string[],
+    finalize: boolean,
+  ): Promise<boolean> {
     if (!this.missionResultApi || !this.editingMissionId) return false;
     try {
       const result = await this.missionResultApi.review(
         this.editingMissionId,
-        { rejectedMeasurementIds: rejectedMeasurementIds as never, finalize },
+        {
+          rejectedMeasurementIds: rejectedMeasurementIds as never,
+          finalize,
+        },
         `review-${this.editingMissionId}-${Date.now()}`,
       );
       this.view.setResult(result);
-      this.mapWorkspace.showMeasurements(result);
+      this.measurementReview.load(result);
       return true;
     } catch (error: unknown) {
-      this.view.setResultStatusMessage(errorMessage(error, 'Failed to save review.'));
+      this.view.setResultStatusMessage(
+        errorMessage(error, "Failed to save review."),
+      );
       return false;
     }
   }
@@ -181,12 +217,12 @@ export class MissionWorkflow {
 
   handleEditorMode(mode: MissionEditorMode): void {
     this.view.setActiveTool(mode);
-    this.mapWorkspace.setEditorMode(mode);
+    this.setEditorCursor(mode);
   }
 
   async save(data: MissionFormData): Promise<void> {
     if (!this.missionEditor.hasValidGeometry()) {
-      window.alert('Create a route with at least two points before saving.');
+      window.alert("Create a route with at least two points before saving.");
       return;
     }
 
@@ -199,7 +235,9 @@ export class MissionWorkflow {
           dispatchDeadline: data.dispatchDeadline,
           geometry: this.missionEditor.getGeometry(),
         });
-        this.missions = this.missions.map((mission) => mission.id === updated.id ? updated : mission);
+        this.missions = this.missions.map((mission) =>
+          mission.id === updated.id ? updated : mission,
+        );
         this.selectedMissionId = updated.id;
       } else {
         const created = await this.missionApi.create({
@@ -216,13 +254,15 @@ export class MissionWorkflow {
       this.missionEditor.stop();
       this.setAdminSelectionEnabled(true);
       this.renderMissionList();
-      const saved = this.missions.find((mission) => mission.id === this.selectedMissionId);
+      const saved = this.missions.find(
+        (mission) => mission.id === this.selectedMissionId,
+      );
       if (saved) {
         this.missionEditor.load(saved);
-        this.view.setEditor(saved, 'Edit mission');
+        this.view.setEditor(saved, "Edit mission");
       }
     } catch (error: unknown) {
-      window.alert(errorMessage(error, 'Failed to save mission.'));
+      window.alert(errorMessage(error, "Failed to save mission."));
     }
   }
 
@@ -233,11 +273,13 @@ export class MissionWorkflow {
         this.editingMissionId,
         `plan-${this.editingMissionId}`,
       );
-      this.missions = this.missions.map((mission) => mission.id === planned.id ? planned : mission);
+      this.missions = this.missions.map((mission) =>
+        mission.id === planned.id ? planned : mission,
+      );
       this.view.renderMissions(this.missions, this.selectedMissionId);
-      this.view.setEditor(planned, 'Planned mission');
+      this.view.setEditor(planned, "Planned mission");
     } catch (error: unknown) {
-      window.alert(errorMessage(error, 'Failed to plan mission.'));
+      window.alert(errorMessage(error, "Failed to plan mission."));
     }
   }
 
@@ -248,11 +290,13 @@ export class MissionWorkflow {
         this.editingMissionId,
         `cancel-${this.editingMissionId}`,
       );
-      this.missions = this.missions.map((mission) => mission.id === cancelled.id ? cancelled : mission);
-      this.view.setEditor(cancelled, 'Cancelled mission');
+      this.missions = this.missions.map((mission) =>
+        mission.id === cancelled.id ? cancelled : mission,
+      );
+      this.view.setEditor(cancelled, "Cancelled mission");
       this.renderMissionList();
     } catch (error: unknown) {
-      window.alert(errorMessage(error, 'Failed to cancel mission.'));
+      window.alert(errorMessage(error, "Failed to cancel mission."));
     }
   }
 
@@ -267,10 +311,10 @@ export class MissionWorkflow {
       this.editingMissionId = derived.id;
       this.selectedMissionId = derived.id;
       this.missionEditor.load(derived);
-      this.view.setEditor(derived, 'New mission (retry)');
+      this.view.setEditor(derived, "New mission (retry)");
       this.renderMissionList();
     } catch (error: unknown) {
-      window.alert(errorMessage(error, 'Failed to create a retry mission.'));
+      window.alert(errorMessage(error, "Failed to create a retry mission."));
     }
   }
 
@@ -278,14 +322,16 @@ export class MissionWorkflow {
     this.missionEditor.stop();
     this.setAdminSelectionEnabled(true);
     if (this.editingMissionId) {
-      const mission = this.missions.find((item) => item.id === this.editingMissionId);
+      const mission = this.missions.find(
+        (item) => item.id === this.editingMissionId,
+      );
       if (mission) {
         this.missionEditor.load(mission);
-        this.view.setEditor(mission, 'Edit mission');
+        this.view.setEditor(mission, "Edit mission");
         return;
       }
     }
-    this.mapWorkspace.clearMission();
+    this.clearMission();
     this.selectedMissionId = null;
     this.editingMissionId = null;
     this.view.showMissionList();
@@ -295,12 +341,28 @@ export class MissionWorkflow {
   back(): void {
     this.missionEditor.stop();
     this.setAdminSelectionEnabled(true);
-    this.mapWorkspace.clearMission();
-    this.mapWorkspace.clearMeasurements();
+    this.clearMission();
+    this.measurementReview.clear();
     this.selectedMissionId = null;
     this.editingMissionId = null;
     this.view.showMissionList();
     this.renderMissionList();
+  }
+
+  private fitMission(id: MissionId): void {
+    const feature = this.missionSource.getFeatureById(id);
+    if (feature) this.mapController.fitViewToFeature(feature);
+  }
+
+  private clearMission(): void {
+    this.missionSource.clear();
+  }
+
+  private setEditorCursor(mode: MissionEditorMode): void {
+    const target = this.mapController.map.getTargetElement();
+    if (!(target instanceof HTMLElement)) return;
+    target.classList.remove("cursor-draw", "cursor-modify", "cursor-translate");
+    if (mode !== "idle") target.classList.add(`cursor-${mode}`);
   }
 
   private renderMissionList(): void {

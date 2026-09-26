@@ -5,6 +5,8 @@ import {
   isValidPalette,
   type SignalQualityPalette,
 } from "../kpi/SignalQualityPalette.js";
+import { MapController } from "../map/MapController.js";
+import SignalQualityLegend from "../ui/SignalQualityLegend.js";
 
 export interface HeatmapLegend {
   readonly element: HTMLElement;
@@ -13,16 +15,17 @@ export interface HeatmapLegend {
 }
 
 export interface HeatmapWorkflowOptions {
+  readonly mapController: MapController;
   readonly signalQualityApi: SignalQualityApi;
   readonly renderer: SignalQualityRenderer;
-  readonly legend: HeatmapLegend;
+  readonly legend?: HeatmapLegend;
   /** Defaults to `DEFAULT_SIGNAL_QUALITY_PALETTE` when omitted. */
   readonly initialPalette?: SignalQualityPalette;
 }
 
 /**
  * Operator-facing Signal Quality exploration: visibility, palette, when to load/refresh range.
- * Owns attaching renderer.layer to the map (caller adds layer once at composition).
+ * Owns attaching renderer.layer and legend control to the map (ADR-0005 / R-07).
  * Does not fetch tiles; does not listen to MissionWorkflow.
  */
 export class HeatmapWorkflow {
@@ -36,10 +39,15 @@ export class HeatmapWorkflow {
   constructor(options: HeatmapWorkflowOptions) {
     this.signalQualityApi = options.signalQualityApi;
     this.renderer = options.renderer;
-    this.legend = options.legend;
+    this.legend = options.legend ?? new SignalQualityLegend();
     this.palette = options.initialPalette ?? DEFAULT_SIGNAL_QUALITY_PALETTE;
     this.renderer.setPalette(this.palette);
     this.legend.setPalette(this.palette);
+
+    options.mapController.map.addLayer(this.renderer.layer);
+    if (this.legend instanceof SignalQualityLegend) {
+      options.mapController.map.addControl(this.legend);
+    }
   }
 
   getPalette(): SignalQualityPalette {

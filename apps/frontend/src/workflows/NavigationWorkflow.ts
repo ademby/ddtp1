@@ -1,13 +1,21 @@
-import { click } from 'ol/events/condition.js';
-import type Feature from 'ol/Feature.js';
-import Select from 'ol/interaction/Select.js';
-import type { SelectEvent } from 'ol/interaction/Select.js';
-import type { Coordinate } from 'ol/coordinate.js';
-import type { AdminDataset } from '../data/AdminDatasetLoader.js';
-import { AdminNode } from '../domain/AdminNode.js';
-import type { NavigationState } from '../map/NavigationState.js';
-import { MapController } from '../map/MapController.js';
-import { shouldUseDefaultTransition } from './navigationTransition.js';
+import { click } from "ol/events/condition.js";
+import type Feature from "ol/Feature.js";
+import Select from "ol/interaction/Select.js";
+import type { SelectEvent } from "ol/interaction/Select.js";
+import LayerGroup from "ol/layer/Group.js";
+import VectorLayer from "ol/layer/Vector.js";
+import VectorSource from "ol/source/Vector.js";
+import type { AdminDataset } from "../data/AdminDatasetLoader.js";
+import { AdminNode } from "../domain/AdminNode.js";
+import type { NavigationState } from "../map/NavigationState.js";
+import { MapController } from "../map/MapController.js";
+import {
+  activeStyle,
+  contextStyle,
+  hoverStyle,
+  selectedStyle,
+} from "../map/styles.js";
+import { shouldUseDefaultTransition } from "./navigationTransition.js";
 
 export interface NavigationSearchOption {
   readonly node: AdminNode;
@@ -20,32 +28,14 @@ interface NavigationSnapshot {
   readonly path: AdminNode[];
   readonly active: AdminNode[];
   readonly context: AdminNode[];
-  readonly center: Coordinate;
+  readonly center: import("ol/coordinate.js").Coordinate;
   readonly zoom: number;
 }
 
-export interface NavigationWorkflowOptions {
-  readonly mapWorkspace: NavigationMapWorkspace;
-  readonly adminDataset: NavigationDataset;
-  readonly locationDisplay: NavigationLocationDisplay;
-}
-
 export interface NavigationDataset {
-  readonly tree: AdminDataset['tree'];
+  readonly tree: AdminDataset["tree"];
   getNodeById(id: string): AdminNode | undefined;
   getNodeByFeature(feature: Feature): AdminNode | undefined;
-}
-
-export interface NavigationMapWorkspace {
-  readonly activeLayer: MapController['activeLayer'];
-  addInteraction(interaction: Select): void;
-  setContext(features: Feature[]): void;
-  setActive(features: Feature[]): void;
-  setSelected(feature: Feature | null): void;
-  fitViewToFeature(feature: Feature): void;
-  fitViewToFeatureHop(feature: Feature): void;
-  hopToView(center: Coordinate, zoom: number): void;
-  getViewState(): { center: Coordinate; zoom: number };
 }
 
 export interface NavigationLocationDisplay {
@@ -53,6 +43,16 @@ export interface NavigationLocationDisplay {
   clear(): void;
 }
 
+export interface NavigationWorkflowOptions {
+  readonly mapController: MapController;
+  readonly adminDataset: NavigationDataset;
+  readonly locationDisplay: NavigationLocationDisplay;
+}
+
+/**
+ * Administrative geography navigation: owns admin LayerGroup, Select interaction,
+ * and navigation state. Uses MapController only for shared view helpers.
+ */
 export class NavigationWorkflow {
   readonly navigation: NavigationState = {
     selected: null,
@@ -61,28 +61,60 @@ export class NavigationWorkflow {
     context: [],
   };
 
-  private readonly mapWorkspace: NavigationMapWorkspace;
+  private readonly mapController: MapController;
   private readonly adminDataset: NavigationDataset;
   private readonly locationDisplay: NavigationLocationDisplay;
+  private readonly contextSource = new VectorSource();
+  private readonly activeSource = new VectorSource();
+  private readonly selectionSource = new VectorSource();
+  private readonly hoverSource = new VectorSource();
+  private readonly activeLayer: VectorLayer<VectorSource>;
   private readonly adminSelect: Select;
   private previewState: NavigationSnapshot | null = null;
 
   constructor(options: NavigationWorkflowOptions) {
-    this.mapWorkspace = options.mapWorkspace;
+    this.mapController = options.mapController;
     this.adminDataset = options.adminDataset;
     this.locationDisplay = options.locationDisplay;
 
+    const contextLayer = new VectorLayer({
+      source: this.contextSource,
+      style: contextStyle,
+      zIndex: 10,
+    });
+    this.activeLayer = new VectorLayer({
+      source: this.activeSource,
+      style: activeStyle,
+      zIndex: 20,
+    });
+    const selectionLayer = new VectorLayer({
+      source: this.selectionSource,
+      style: selectedStyle,
+      zIndex: 30,
+    });
+    const hoverLayer = new VectorLayer({
+      source: this.hoverSource,
+      style: hoverStyle,
+      zIndex: 40,
+    });
+
+    this.mapController.map.addLayer(
+      new LayerGroup({
+        layers: [contextLayer, this.activeLayer, selectionLayer, hoverLayer],
+      }),
+    );
+
     this.adminSelect = new Select({
       condition: click,
-      layers: [this.mapWorkspace.activeLayer],
+      layers: [this.activeLayer],
       style: null,
       multi: false,
     });
-    this.adminSelect.on('select', (event: SelectEvent) => {
+    this.adminSelect.on("select", (event: SelectEvent) => {
       const feature = event.selected[0];
       if (feature) this.selectNodeByFeature(feature);
     });
-    this.mapWorkspace.addInteraction(this.adminSelect);
+    this.mapController.map.addInteraction(this.adminSelect);
   }
 
   getSearchOptions(): NavigationSearchOption[] {
@@ -90,8 +122,10 @@ export class NavigationWorkflow {
       const path = this.adminDataset.tree.pathTo(node);
       return {
         node,
-        label: String(node.feature.get('shapeName') ?? node.id),
-        path: path.map((item) => String(item.feature.get('shapeName') ?? item.id)).join(' / '),
+        label: String(node.feature.get("shapeName") ?? node.id),
+        path: path
+          .map((item) => String(item.feature.get("shapeName") ?? item.id))
+          .join(" / "),
       };
     });
   }
@@ -102,9 +136,10 @@ export class NavigationWorkflow {
     this.navigation.path = [];
     this.navigation.context = [];
     this.navigation.active = [root];
-    this.mapWorkspace.setContext([]);
-    this.mapWorkspace.setActive([root.feature]);
-    this.mapWorkspace.setSelected(null);
+    this.contextSource.clear();
+    this.activeSource.clear();
+    this.activeSource.addFeature(root.feature);
+    this.selectionSource.clear();
     this.locationDisplay.clear();
   }
 
@@ -127,14 +162,19 @@ export class NavigationWorkflow {
     this.navigation.active = [...activeSet];
     this.navigation.context = path;
 
-    this.mapWorkspace.setContext(path.map((item) => item.feature));
-    this.mapWorkspace.setActive(this.navigation.active.map((item) => item.feature));
-    this.mapWorkspace.setSelected(node.feature);
+    this.contextSource.clear();
+    this.contextSource.addFeatures(path.map((item) => item.feature));
+    this.activeSource.clear();
+    this.activeSource.addFeatures(
+      this.navigation.active.map((item) => item.feature),
+    );
+    this.selectionSource.clear();
+    this.selectionSource.addFeature(node.feature);
 
     if (shouldUseDefaultTransition(previous, node)) {
-      this.mapWorkspace.fitViewToFeature(node.feature);
+      this.mapController.fitViewToFeature(node.feature);
     } else {
-      this.mapWorkspace.fitViewToFeatureHop(node.feature);
+      this.mapController.fitViewToFeatureHop(node.feature);
     }
     this.locationDisplay.setPath(path);
   }
@@ -160,11 +200,20 @@ export class NavigationWorkflow {
     this.navigation.path = snapshot.path;
     this.navigation.active = snapshot.active;
     this.navigation.context = snapshot.context;
-    this.mapWorkspace.setContext(snapshot.context.map((item) => item.feature));
-    this.mapWorkspace.setActive(snapshot.active.map((item) => item.feature));
-    this.mapWorkspace.setSelected(snapshot.selected?.feature ?? null);
+    this.contextSource.clear();
+    this.contextSource.addFeatures(
+      snapshot.context.map((item) => item.feature),
+    );
+    this.activeSource.clear();
+    this.activeSource.addFeatures(
+      snapshot.active.map((item) => item.feature),
+    );
+    this.selectionSource.clear();
+    if (snapshot.selected) {
+      this.selectionSource.addFeature(snapshot.selected.feature);
+    }
     this.locationDisplay.setPath(snapshot.path);
-    this.mapWorkspace.hopToView(snapshot.center, snapshot.zoom);
+    this.mapController.hopToView(snapshot.center, snapshot.zoom);
   }
 
   commitPreview(node: AdminNode): void {
@@ -178,7 +227,7 @@ export class NavigationWorkflow {
   }
 
   private captureNavigation(): NavigationSnapshot {
-    const { center, zoom } = this.mapWorkspace.getViewState();
+    const { center, zoom } = this.mapController.getViewState();
     return {
       selected: this.navigation.selected,
       path: [...this.navigation.path],

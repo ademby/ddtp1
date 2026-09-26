@@ -11,14 +11,10 @@ import type { SignalQualityPalette } from "../kpi/SignalQualityPalette";
 import { HttpSignalQualityRenderer } from "../kpi/SignalQualityRenderer";
 import { MapController } from "../map/MapController";
 import type { NavigationState } from "../map/NavigationState";
-import { MeasurementReviewController } from "../mission/MeasurementReview";
-import { MissionEditor } from "../mission/MissionEditor";
-import BasemapControl from "../ui/BasemapControl";
 import Breadcrumbs from "../ui/Breadcrumbs";
 import LocationSearch from "../ui/LocationSearch";
 import type { MissionFormData } from "../ui/MissionOperationsView";
 import OperationsPanel from "../ui/OperationsPanel";
-import SignalQualityLegend from "../ui/SignalQualityLegend";
 import { HeatmapWorkflow } from "../workflows/HeatmapWorkflow";
 import { MissionWorkflow } from "../workflows/MissionWorkflow";
 import { NavigationWorkflow } from "../workflows/NavigationWorkflow";
@@ -52,7 +48,7 @@ function showFadingAdvisory(message: string): void {
 
 /**
  * Construct once: map, Apis, renderer, workflows; register panel views; initial load.
- * Does not build feature layers beyond wiring; does not call heatmap from mission finalize.
+ * Does not build feature layers (workflows own those). Does not call heatmap from mission finalize.
  */
 export class CompositionRoot {
   readonly mapController: MapController;
@@ -64,7 +60,6 @@ export class CompositionRoot {
   readonly missionWorkflow: MissionWorkflow;
   readonly heatmapWorkflow: HeatmapWorkflow;
   readonly operationsPanel: OperationsPanel;
-  readonly measurementReview: MeasurementReviewController;
 
   private constructor(
     mapController: MapController,
@@ -85,31 +80,12 @@ export class CompositionRoot {
     this.mapController.map.addControl(locationDisplay);
 
     this.navigationWorkflow = new NavigationWorkflow({
-      mapWorkspace: {
-        activeLayer: this.mapController.activeLayer,
-        addInteraction: (interaction) =>
-          this.mapController.map.addInteraction(interaction),
-        setContext: (features) => this.mapController.setContext(features),
-        setActive: (features) => this.mapController.setActive(features),
-        setSelected: (feature) => this.mapController.setSelected(feature),
-        fitViewToFeature: (feature) =>
-          this.mapController.fitViewToFeature(feature),
-        fitViewToFeatureHop: (feature) =>
-          this.mapController.fitViewToFeatureHop(feature),
-        hopToView: (center, zoom) => this.mapController.hopToView(center, zoom),
-        getViewState: () => {
-          const view = this.mapController.map.getView();
-          const center = view.getCenter();
-          const zoom = view.getZoom();
-          if (!center || zoom === undefined)
-            throw new Error("Map view is not ready for location preview.");
-          return { center, zoom };
-        },
-      },
+      mapController: this.mapController,
       adminDataset: this.adminDataset,
       locationDisplay,
     });
     selectNodeById = (id) => this.navigationWorkflow.selectNodeById(id);
+
     const locationSearch = new LocationSearch({
       options: this.navigationWorkflow.getSearchOptions(),
       onPreviewStart: (node) => this.navigationWorkflow.previewNode(node),
@@ -121,49 +97,17 @@ export class CompositionRoot {
       new Control({ element: locationSearch.element }),
     );
 
-    const basemap = new BasemapControl(
-      () => this.mapController.basemapManager.next(),
-      () => this.mapController.basemapManager.getNextName(),
-    );
-    this.mapController.map.addControl(basemap);
-
-    const legend = new SignalQualityLegend();
-    this.mapController.map.addControl(legend);
-    legend.setRange(0, 100);
-
     const renderer = new HttpSignalQualityRenderer(this.signalQualityApi);
-    // Heatmap owns the layer: attach once at composition.
-    this.mapController.map.addLayer(renderer.layer);
 
     this.heatmapWorkflow = new HeatmapWorkflow({
+      mapController: this.mapController,
       signalQualityApi: this.signalQualityApi,
       renderer,
-      legend,
     });
 
-    let handleEditorMode: (
-      mode: Parameters<MissionWorkflow["handleEditorMode"]>[0],
-    ) => void = () => {
-      throw new Error("Mission workflow is not ready.");
-    };
-    this.measurementReview = new MeasurementReviewController(
-      this.mapController.map,
-      this.mapController.measurementSource,
-      this.mapController.measurementLayer,
-      this.mapController.getProjection(),
-      {
-        onSelectionChange: (ids) =>
-          this.operationsPanel.setMeasurementSelection(ids),
-        onRejectedChange: (ids) =>
-          this.operationsPanel.setMeasurementRejection(ids),
-      },
-    );
-    const missionEditor = new MissionEditor(
-      this.mapController.map,
-      this.mapController.missionSource,
-      this.mapController.getProjection(),
-      (mode) => handleEditorMode(mode),
-    );
+    // Deferred: missionWorkflow.review is needed for panel callbacks; panel is the view.
+    let missionWorkflowRef: MissionWorkflow | null = null;
+
     const missionCallbacks = {
       onNew: () => this.missionWorkflow.create(),
       onSelect: (id: string) => this.missionWorkflow.select(id),
@@ -178,35 +122,37 @@ export class CompositionRoot {
       onBack: () => this.missionWorkflow.back(),
       onCancelMission: () => void this.missionWorkflow.cancelMission(),
       onRetryMission: () => void this.missionWorkflow.retry(),
-      onSaveReview: () =>
-        void this.missionWorkflow.saveReview(
-          this.measurementReview.getRejectedIds(),
-          false,
-        ),
-      onFinalizeReview: () =>
+      onSaveReview: () => {
+        const review = missionWorkflowRef?.review;
+        if (!review) return;
+        void this.missionWorkflow.saveReview(review.getRejectedIds(), false);
+      },
+      onFinalizeReview: () => {
+        const review = missionWorkflowRef?.review;
+        if (!review) return;
         void (async () => {
           const saved = await this.missionWorkflow.saveReview(
-            this.measurementReview.getRejectedIds(),
+            review.getRejectedIds(),
             true,
           );
-          // No cross-workflow refresh. Operator refreshes heatmap explicitly.
           if (saved) {
             showFadingAdvisory(
               "Result finalized. Refresh the heatmap to see updated Signal Quality.",
             );
           }
-        })(),
+        })();
+      },
       onSelectMeasurement: (id: string, additive: boolean) =>
-        this.measurementReview.selectById(id, additive),
-      onSelectAllMeasurements: () => this.measurementReview.selectAll(),
+        missionWorkflowRef?.review.selectById(id, additive),
+      onSelectAllMeasurements: () => missionWorkflowRef?.review.selectAll(),
       onInvertMeasurementSelection: () =>
-        this.measurementReview.invertSelection(),
+        missionWorkflowRef?.review.invertSelection(),
       onClearMeasurementSelection: () =>
-        this.measurementReview.clearSelection(),
+        missionWorkflowRef?.review.clearSelection(),
       onApproveSelectedMeasurements: () =>
-        this.measurementReview.approveSelected(),
+        missionWorkflowRef?.review.approveSelected(),
       onRejectSelectedMeasurements: () =>
-        this.measurementReview.rejectSelected(),
+        missionWorkflowRef?.review.rejectSelected(),
       onToggleKpi: () => void this.heatmapWorkflow.toggle(),
       onRefreshKpi: () => void this.heatmapWorkflow.refresh(),
       onPaletteChange: (palette: SignalQualityPalette) => {
@@ -218,38 +164,27 @@ export class CompositionRoot {
       },
       onPaletteReset: () => this.heatmapWorkflow.resetPalette(),
     };
+
     this.operationsPanel = new OperationsPanel(
       missionCallbacks,
       this.heatmapWorkflow.getPalette(),
     );
+
     this.missionWorkflow = new MissionWorkflow({
-      mapWorkspace: {
-        fitMission: (id) => {
-          const feature = this.mapController.missionSource.getFeatureById(id);
-          if (feature) this.mapController.fitViewToFeature(feature);
-        },
-        clearMission: () => this.mapController.clearMission(),
-        setEditorMode: (mode) => {
-          const target = this.mapController.map.getTargetElement();
-          if (!(target instanceof HTMLElement)) return;
-          target.classList.remove(
-            "cursor-draw",
-            "cursor-modify",
-            "cursor-translate",
-          );
-          if (mode !== "idle") target.classList.add(`cursor-${mode}`);
-        },
-        showMeasurements: (result) => this.measurementReview.load(result),
-        clearMeasurements: () => this.measurementReview.clear(),
-      },
+      mapController: this.mapController,
       missionApi: this.missionApi,
       missionResultApi: this.missionResultApi,
-      missionEditor,
       view: this.operationsPanel,
       setAdminSelectionEnabled: (enabled) =>
         this.navigationWorkflow.setSelectionEnabled(enabled),
+      measurementCallbacks: {
+        onSelectionChange: (ids) =>
+          this.operationsPanel.setMeasurementSelection(ids),
+        onRejectedChange: (ids) =>
+          this.operationsPanel.setMeasurementRejection(ids),
+      },
     });
-    handleEditorMode = (mode) => this.missionWorkflow.handleEditorMode(mode);
+    missionWorkflowRef = this.missionWorkflow;
   }
 
   static async create(

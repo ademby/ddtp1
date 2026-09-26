@@ -5,128 +5,31 @@ import type { Coordinate } from "ol/coordinate.js";
 import { easeOut, inAndOut } from "ol/easing.js";
 import type { Extent } from "ol/extent.js";
 import { getCenter } from "ol/extent.js";
-import type BaseLayer from "ol/layer/Base.js";
-import VectorLayer from "ol/layer/Vector.js";
 import type Projection from "ol/proj/Projection.js";
-import VectorSource from "ol/source/Vector.js";
 import { BasemapManager } from "./BasemapManager.js";
-import {
-  activeStyle,
-  contextStyle,
-  hoverStyle,
-  measurementStyle,
-  missionStyle,
-  selectedStyle,
-} from "./styles.js";
+import BasemapControl from "../ui/BasemapControl.js";
 
 /**
- * Shared map surface and basemap. No feature layers for KPI / mission / admin ownership —
- * workflows own those (R-05). Navigation and mission sources remain here until R-07 moves them.
+ * Shared map surface and basemap. Feature layers, interactions, and feature UI
+ * belong to workflows (ADR-0005 / R-07).
  */
 export class MapController {
   readonly map: Map;
   readonly basemapManager: BasemapManager;
-  readonly contextSource = new VectorSource();
-  readonly activeSource = new VectorSource();
-  readonly selectionSource = new VectorSource();
-  readonly hoverSource = new VectorSource();
-  readonly missionSource = new VectorSource();
-  readonly measurementSource = new VectorSource();
-  readonly contextLayer: VectorLayer<VectorSource>;
-  readonly activeLayer: VectorLayer<VectorSource>;
-  readonly selectionLayer: VectorLayer<VectorSource>;
-  readonly hoverLayer: VectorLayer<VectorSource>;
-  readonly missionLayer: VectorLayer<VectorSource>;
-  readonly measurementLayer: VectorLayer<VectorSource>;
 
   constructor(target = "map-container") {
     this.basemapManager = new BasemapManager();
-    this.contextLayer = new VectorLayer({
-      source: this.contextSource,
-      style: contextStyle,
-      zIndex: 10,
-    });
-    this.activeLayer = new VectorLayer({
-      source: this.activeSource,
-      style: activeStyle,
-      zIndex: 20,
-    });
-    this.selectionLayer = new VectorLayer({
-      source: this.selectionSource,
-      style: selectedStyle,
-      zIndex: 30,
-    });
-    this.hoverLayer = new VectorLayer({
-      source: this.hoverSource,
-      style: hoverStyle,
-      zIndex: 40,
-    });
-    this.missionLayer = new VectorLayer({
-      source: this.missionSource,
-      style: missionStyle,
-      zIndex: 50,
-    });
-    this.measurementLayer = new VectorLayer({
-      source: this.measurementSource,
-      style: measurementStyle,
-      zIndex: 55,
-    });
-
     this.map = new Map({
       target,
-      layers: [
-        ...this.basemapManager.getLayers(),
-        this.contextLayer,
-        this.activeLayer,
-        this.selectionLayer,
-        this.missionLayer,
-        this.measurementLayer,
-        this.hoverLayer,
-      ],
+      layers: [...this.basemapManager.getLayers()],
       view: new View({ center: [1064320, 4024067], zoom: 5 }),
     });
-  }
-
-  setContext(features: Feature[]): void {
-    this.contextSource.clear();
-    this.contextSource.addFeatures(features);
-  }
-
-  setActive(features: Feature[]): void {
-    this.activeSource.clear();
-    this.activeSource.addFeatures(features);
-  }
-
-  setSelected(feature: Feature | null): void {
-    this.selectionSource.clear();
-    if (feature) this.selectionSource.addFeature(feature);
-  }
-
-  setHovered(features: Feature[]): void {
-    this.hoverSource.clear();
-    this.hoverSource.addFeatures(features);
-  }
-
-  clearHover(): void {
-    this.hoverSource.clear();
-  }
-
-  setMission(feature: Feature | null): void {
-    this.missionSource.clear();
-    if (feature) this.missionSource.addFeature(feature);
-  }
-
-  clearMission(): void {
-    this.missionSource.clear();
-  }
-
-  setMeasurements(features: Feature[]): void {
-    this.measurementSource.clear();
-    this.measurementSource.addFeatures(features);
-  }
-
-  clearMeasurements(): void {
-    this.measurementSource.clear();
+    this.map.addControl(
+      new BasemapControl(
+        () => this.basemapManager.next(),
+        () => this.basemapManager.getNextName(),
+      ),
+    );
   }
 
   fitViewToFeature(feature: Feature): void {
@@ -204,7 +107,13 @@ export class MapController {
     return this.map.getView().getProjection();
   }
 
-  setLayerVisible(layer: BaseLayer, visible: boolean): void {
-    layer.setVisible(visible);
+  getViewState(): { center: Coordinate; zoom: number } {
+    const view = this.map.getView();
+    const center = view.getCenter();
+    const zoom = view.getZoom();
+    if (!center || zoom === undefined) {
+      throw new Error("Map view is not ready.");
+    }
+    return { center, zoom };
   }
 }
