@@ -1,9 +1,7 @@
+import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
+import { SIGNAL_QUALITY_GRID_SIZE } from "@drone-drive/contracts/signal-quality";
 import DataTileSource from "ol/source/DataTile.js";
 import { createXYZ } from "ol/tilegrid.js";
-import {
-  SIGNAL_QUALITY_GRID_SIZE,
-  signalQualityTilePath,
-} from "@drone-drive/contracts/signal-quality";
 import { uiConfig } from "../ui.config.js";
 import type { SignalQualityPalette } from "./SignalQualityPalette.js";
 
@@ -17,11 +15,9 @@ const MAX_NUMERIC_TILES = 512;
 type NumericTile = Float32Array;
 
 /**
- * Backend numeric tile source.
- *
- * Tiles stay numeric all the way into OpenLayers/WebGL. The source keeps a bounded browser-side
- * numeric cache, while OpenLayers also keeps its own tile/texture caches. Palette changes therefore
- * never touch the network or numeric tile cache.
+ * Backend numeric tile source for WebGL.
+ * Tiles stay numeric into OL/WebGL. Loads only via SignalQualityApi.getTile.
+ * Palette changes never touch the network or numeric cache.
  */
 export class SignalQualityTileSource_ForWebGL extends DataTileSource {
   private min = 0;
@@ -30,7 +26,7 @@ export class SignalQualityTileSource_ForWebGL extends DataTileSource {
   private readonly numericCache = new Map<string, NumericTile>();
   private readonly inFlight = new Map<string, Promise<NumericTile>>();
 
-  constructor(private readonly apiBaseUrl: string) {
+  constructor(private readonly api: SignalQualityApi) {
     super({
       projection: "EPSG:3857",
       tileSize: GRID_SIZE,
@@ -46,7 +42,6 @@ export class SignalQualityTileSource_ForWebGL extends DataTileSource {
 
   setRange(min: number, max: number, version: string): void {
     const versionChanged = this.version !== version;
-    const rangeChanged = this.min !== min || this.max !== max;
     this.min = min;
     this.max = max;
     this.version = version;
@@ -79,17 +74,9 @@ export class SignalQualityTileSource_ForWebGL extends DataTileSource {
     const pending = this.inFlight.get(key);
     if (pending) return pending;
 
-    const promise = fetch(
-      `${this.apiBaseUrl}${signalQualityTilePath({ z, x, y })}?v=${encodeURIComponent(this.version)}`,
-    )
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load Signal Quality tile: ${response.status}`,
-          );
-        }
-        const bytes = await response.arrayBuffer();
-        const tile = new Float32Array(bytes);
+    const promise = this.api
+      .getTile({ z, x, y })
+      .then((tile) => {
         this.touch(key, tile);
         return tile;
       })
@@ -98,7 +85,6 @@ export class SignalQualityTileSource_ForWebGL extends DataTileSource {
       });
 
     this.inFlight.set(key, promise);
-    // console.trace("Debugging the call stack");
     return promise;
   }
 

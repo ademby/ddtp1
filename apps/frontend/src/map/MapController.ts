@@ -6,18 +6,9 @@ import { easeOut, inAndOut } from "ol/easing.js";
 import type { Extent } from "ol/extent.js";
 import { getCenter } from "ol/extent.js";
 import type BaseLayer from "ol/layer/Base.js";
-import Layer from "ol/layer/Layer.js";
-import TileLayer from "ol/layer/Tile.js";
 import VectorLayer from "ol/layer/Vector.js";
-import WebGLTileLayer from "ol/layer/WebGLTile.js";
 import type Projection from "ol/proj/Projection.js";
-import TileSource from "ol/source/Tile.js";
 import VectorSource from "ol/source/Vector.js";
-import {
-  DEFAULT_SIGNAL_QUALITY_PALETTE,
-  type SignalQualityPalette,
-} from "../kpi/SignalQualityPalette.js";
-import { uiConfig } from "../ui.config.js";
 import { BasemapManager } from "./BasemapManager.js";
 import {
   activeStyle,
@@ -28,6 +19,10 @@ import {
   selectedStyle,
 } from "./styles.js";
 
+/**
+ * Shared map surface and basemap. No feature layers for KPI / mission / admin ownership —
+ * workflows own those (R-05). Navigation and mission sources remain here until R-07 moves them.
+ */
 export class MapController {
   readonly map: Map;
   readonly basemapManager: BasemapManager;
@@ -43,10 +38,6 @@ export class MapController {
   readonly hoverLayer: VectorLayer<VectorSource>;
   readonly missionLayer: VectorLayer<VectorSource>;
   readonly measurementLayer: VectorLayer<VectorSource>;
-  readonly kpiLayer: Layer;
-  private kpiPalette: SignalQualityPalette = DEFAULT_SIGNAL_QUALITY_PALETTE;
-  private kpiMin = 0;
-  private kpiMax = 100;
 
   constructor(target = "map-container") {
     this.basemapManager = new BasemapManager();
@@ -81,48 +72,10 @@ export class MapController {
       zIndex: 55,
     });
 
-    this.kpiLayer =
-      uiConfig.kpiRenderer === "canvas"
-        ? new TileLayer({
-            zIndex: 45,
-            opacity: 0.78,
-            visible: false,
-            cacheSize: 1024,
-          })
-        : new WebGLTileLayer({
-            zIndex: 45,
-            opacity: 0.78,
-            visible: false,
-            cacheSize: 1024,
-            // style: this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
-            style: {
-              variables: {
-                kpiMin: 0.01,
-                kpiMax: 0.02,
-              },
-              color: [
-                "case",
-                ["==", ["band", 2], 0],
-                [0, 0, 0, 0],
-
-                [
-                  "interpolate",
-                  ["linear"],
-                  ["band", 1],
-                  ["var", "kpiMin"],
-                  [0, 0, 0, 1],
-                  ["var", "kpiMax"],
-                  [255, 255, 255, 1],
-                ],
-              ],
-            },
-          });
-
     this.map = new Map({
       target,
       layers: [
         ...this.basemapManager.getLayers(),
-        this.kpiLayer,
         this.contextLayer,
         this.activeLayer,
         this.selectionLayer,
@@ -132,67 +85,6 @@ export class MapController {
       ],
       view: new View({ center: [1064320, 4024067], zoom: 5 }),
     });
-  }
-
-  setKpiSource(source: TileSource): void {
-    this.kpiLayer.setSource(source);
-  }
-
-  /* WEBGL Stuff */ // refactor [put in corresponding workflow]
-  private buildKpiStyle(
-    min: number,
-    max: number,
-    palette: SignalQualityPalette,
-  ) {
-    const value = ["band", 1];
-
-    const normalized = [
-      "clamp",
-      ["/", ["-", value, min], max - min || 1],
-      0,
-      1,
-    ];
-
-    const color: any[] = ["interpolate", ["linear"], normalized];
-
-    for (const stop of palette) {
-      color.push(stop.offset, stop.color);
-    }
-
-    return {
-      color,
-    };
-  }
-
-  setKpiPalette(palette: SignalQualityPalette): void {
-    this.kpiPalette = palette;
-    if (this.kpiLayer instanceof WebGLTileLayer) {
-      this.kpiLayer.setStyle(
-        this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
-      );
-    }
-  }
-
-  setKpiRange(min: number, max: number): void {
-    this.kpiMin = min;
-    this.kpiMax = max;
-    if (this.kpiLayer instanceof WebGLTileLayer) {
-      this.kpiLayer.setStyle(
-        this.buildKpiStyle(this.kpiMin, this.kpiMax, this.kpiPalette),
-      );
-      this.kpiLayer.updateStyleVariables({
-        kpiMin: min,
-        kpiMax: max,
-      });
-    }
-  }
-
-  setKpiVisible(visible: boolean): void {
-    this.kpiLayer.setVisible(visible);
-  }
-
-  isKpiVisible(): boolean {
-    return this.kpiLayer.getVisible();
   }
 
   setContext(features: Feature[]): void {

@@ -138,8 +138,7 @@ export class MissionWorkflow {
     }
   }
 
-  /** Returns whether the revision was saved, so callers (e.g. triggering a heatmap refresh
-   *  only after a real finalize) don't have to duplicate error handling to find out. */
+  /** Returns whether the revision was saved (callers may show advisory UI after finalize). */
   async saveReview(rejectedMeasurementIds: readonly string[], finalize: boolean): Promise<boolean> {
     if (!this.missionResultApi || !this.editingMissionId) return false;
     try {

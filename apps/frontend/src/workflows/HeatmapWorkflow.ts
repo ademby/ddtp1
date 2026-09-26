@@ -1,23 +1,10 @@
-import type { SignalQualityDataset } from '../kpi/SignalQuality.js';
+import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
+import type { SignalQualityRenderer } from "../kpi/SignalQualityRenderer.js";
 import {
   DEFAULT_SIGNAL_QUALITY_PALETTE,
   isValidPalette,
   type SignalQualityPalette,
-} from '../kpi/SignalQualityPalette.js';
-
-export interface HeatmapMapWorkspace {
-  isVisible(): boolean;
-  setVisible(visible: boolean): void;
-}
-
-export interface HeatmapDataSource {
-  load(): Promise<SignalQualityDataset>;
-}
-
-export interface HeatmapRenderer {
-  setDataset(dataset: SignalQualityDataset): void;
-  setPalette(palette: SignalQualityPalette): void;
-}
+} from "../kpi/SignalQualityPalette.js";
 
 export interface HeatmapLegend {
   readonly element: HTMLElement;
@@ -26,34 +13,31 @@ export interface HeatmapLegend {
 }
 
 export interface HeatmapWorkflowOptions {
-  readonly mapWorkspace: HeatmapMapWorkspace;
-  readonly dataSource: HeatmapDataSource;
-  readonly renderer: HeatmapRenderer;
+  readonly signalQualityApi: SignalQualityApi;
+  readonly renderer: SignalQualityRenderer;
   readonly legend: HeatmapLegend;
   /** Defaults to `DEFAULT_SIGNAL_QUALITY_PALETTE` when omitted. */
   readonly initialPalette?: SignalQualityPalette;
 }
 
 /**
- * Owns the heatmap's application state: visibility, the loaded dataset, and the color palette.
- * The palette is presentation-only (ADR-0004) and lives here rather than in the renderer/legend
- * so there is a single source of truth the UI can read from and push edits through.
+ * Operator-facing Signal Quality exploration: visibility, palette, when to load/refresh range.
+ * Owns attaching renderer.layer to the map (caller adds layer once at composition).
+ * Does not fetch tiles; does not listen to MissionWorkflow.
  */
 export class HeatmapWorkflow {
-  private readonly mapWorkspace: HeatmapMapWorkspace;
-  private readonly dataSource: HeatmapDataSource;
-  private readonly renderer: HeatmapRenderer;
+  private readonly signalQualityApi: SignalQualityApi;
+  private readonly renderer: SignalQualityRenderer;
   private readonly legend: HeatmapLegend;
   private dataLoaded = false;
+  private visible = false;
   private palette: SignalQualityPalette;
 
   constructor(options: HeatmapWorkflowOptions) {
-    this.mapWorkspace = options.mapWorkspace;
-    this.dataSource = options.dataSource;
+    this.signalQualityApi = options.signalQualityApi;
     this.renderer = options.renderer;
     this.legend = options.legend;
     this.palette = options.initialPalette ?? DEFAULT_SIGNAL_QUALITY_PALETTE;
-    // Apply immediately so the worker/legend are configured even before a dataset loads.
     this.renderer.setPalette(this.palette);
     this.legend.setPalette(this.palette);
   }
@@ -62,10 +46,11 @@ export class HeatmapWorkflow {
     return this.palette;
   }
 
-  /** Updates the color ramp and repaints the live map layer and legend immediately. */
   setPalette(palette: SignalQualityPalette): void {
     if (!isValidPalette(palette)) {
-      throw new Error('Signal Quality palette must have at least two stops spanning 0..1 with valid hex colors.');
+      throw new Error(
+        "Signal Quality palette must have at least two stops spanning 0..1 with valid hex colors.",
+      );
     }
     this.palette = palette;
     this.renderer.setPalette(palette);
@@ -77,37 +62,37 @@ export class HeatmapWorkflow {
   }
 
   async load(): Promise<void> {
-    const dataset = await this.dataSource.load();
-    this.renderer.setDataset(dataset);
-    this.legend.setRange(dataset.min, dataset.max);
+    const range = await this.signalQualityApi.getRange();
+    this.renderer.setRange(range.min, range.max, range.version);
+    this.legend.setRange(range.min, range.max);
     this.dataLoaded = true;
-    this.mapWorkspace.setVisible(false);
-    this.legend.element.style.display = 'none';
+    this.visible = false;
+    this.renderer.setVisible(false);
+    this.legend.element.style.display = "none";
   }
 
   /**
-   * Re-fetches the current range/version and re-applies it to the renderer, without touching
-   * visibility. `dataSource.load()` -> `renderer.setDataset()` advances the tile source's
-   * version, which changes its OpenLayers cache key (see SignalQualityTileSource.getKey()) so
-   * previously-cached tiles are abandoned and every tile is re-requested against fresh data —
-   * no manual per-tile invalidation needed. A no-op until the first `load()`/`toggle()`.
+   * Re-fetches range/version and applies to renderer without changing visibility.
+   * Advancing version changes the tile source cache key so tiles re-request.
    */
   async refresh(): Promise<void> {
     if (!this.dataLoaded) return;
-    const dataset = await this.dataSource.load();
-    this.renderer.setDataset(dataset);
-    this.legend.setRange(dataset.min, dataset.max);
+    const range = await this.signalQualityApi.getRange();
+    this.renderer.setRange(range.min, range.max, range.version);
+    this.legend.setRange(range.min, range.max);
   }
 
   async toggle(): Promise<void> {
-    if (this.mapWorkspace.isVisible()) {
-      this.mapWorkspace.setVisible(false);
-      this.legend.element.style.display = 'none';
+    if (this.visible) {
+      this.visible = false;
+      this.renderer.setVisible(false);
+      this.legend.element.style.display = "none";
       return;
     }
     if (!this.dataLoaded) await this.load();
-    this.mapWorkspace.setVisible(true);
-    this.legend.element.style.display = 'block';
+    this.visible = true;
+    this.renderer.setVisible(true);
+    this.legend.element.style.display = "block";
   }
 }
 

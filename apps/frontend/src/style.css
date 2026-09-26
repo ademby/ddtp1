@@ -1040,3 +1040,28 @@ select:focus-visible {
     writing-mode: horizontal-tb;
   }
 }
+
+/* Map advisory (post-finalize refresh hint) */
+.map-advisory {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  z-index: 2000;
+  padding: 0.65rem 1rem;
+  max-width: min(420px, calc(100vw - 2rem));
+  background: rgba(23, 37, 42, 0.92);
+  color: #f4f7f6;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.map-advisory-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+

@@ -1,14 +1,14 @@
 import type { MissionApi } from "@drone-drive/contracts/mission";
 import type { MissionResultApi } from "@drone-drive/contracts/mission-result";
+import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
 import Control from "ol/control/Control";
 import type { AdminDataset } from "../data/AdminDatasetLoader";
 import AdminDatasetLoader from "../data/AdminDatasetLoader";
 import HttpMissionApi from "../data/HttpMissionApi";
 import HttpMissionResultApi from "../data/HttpMissionResultApi";
-import { MockMissionApi } from "../data/MockMissionApi";
+import HttpSignalQualityApi from "../data/HttpSignalQualityApi";
 import type { SignalQualityPalette } from "../kpi/SignalQualityPalette";
-import SignalQualityService from "../kpi/SignalQualityService";
-import SignalQualityVisualizer from "../kpi/SignalQualityVisualizer";
+import { HttpSignalQualityRenderer } from "../kpi/SignalQualityRenderer";
 import { MapController } from "../map/MapController";
 import type { NavigationState } from "../map/NavigationState";
 import { MeasurementReviewController } from "../mission/MeasurementReview";
@@ -27,11 +27,38 @@ export interface CompositionRootOptions {
   datasetURL?: string;
 }
 
+function requireApiBaseUrl(): string {
+  const base = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!base) {
+    throw new Error(
+      "VITE_API_BASE_URL is required. Frontend MockMissionApi has been removed.",
+    );
+  }
+  return base.replace(/\/$/, "");
+}
+
+/** Fading advisory on the map surface (mission UI after finalize). */
+function showFadingAdvisory(message: string): void {
+  const el = document.createElement("div");
+  el.className = "map-advisory";
+  el.textContent = message;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("map-advisory-visible"));
+  window.setTimeout(() => {
+    el.classList.remove("map-advisory-visible");
+    window.setTimeout(() => el.remove(), 450);
+  }, 4500);
+}
+
+/**
+ * Construct once: map, Apis, renderer, workflows; register panel views; initial load.
+ * Does not build feature layers beyond wiring; does not call heatmap from mission finalize.
+ */
 export class CompositionRoot {
   readonly mapController: MapController;
   readonly missionApi: MissionApi;
-  readonly missionResultApi: MissionResultApi | undefined;
-  readonly signalQualityService: SignalQualityService;
+  readonly missionResultApi: MissionResultApi;
+  readonly signalQualityApi: SignalQualityApi;
   readonly adminDataset: AdminDataset;
   readonly navigationWorkflow: NavigationWorkflow;
   readonly missionWorkflow: MissionWorkflow;
@@ -45,15 +72,11 @@ export class CompositionRoot {
   ) {
     this.mapController = mapController;
     this.adminDataset = adminDataset;
-    this.missionApi = import.meta.env.VITE_API_BASE_URL
-      ? new HttpMissionApi(import.meta.env.VITE_API_BASE_URL)
-      : new MockMissionApi();
-    this.missionResultApi = new HttpMissionResultApi(
-      import.meta.env.VITE_API_BASE_URL,
-    );
-    this.signalQualityService = new SignalQualityService(
-      import.meta.env.VITE_API_BASE_URL,
-    );
+
+    const apiBase = requireApiBaseUrl();
+    this.missionApi = new HttpMissionApi(apiBase);
+    this.missionResultApi = new HttpMissionResultApi(apiBase);
+    this.signalQualityApi = new HttpSignalQualityApi(apiBase);
 
     let selectNodeById: (id: string) => void = () => {
       throw new Error("Navigation workflow is not ready.");
@@ -107,20 +130,14 @@ export class CompositionRoot {
     const legend = new SignalQualityLegend();
     this.mapController.map.addControl(legend);
     legend.setRange(0, 100);
-    const apiBase = import.meta.env.VITE_API_BASE_URL;
-    const visualizer = new SignalQualityVisualizer(
-      apiBase,
-      (palette) => this.mapController.setKpiPalette(palette),
-      (min, max) => this.mapController.setKpiRange(min, max),
-    );
-    this.mapController.setKpiSource(visualizer.getSource());
+
+    const renderer = new HttpSignalQualityRenderer(this.signalQualityApi);
+    // Heatmap owns the layer: attach once at composition.
+    this.mapController.map.addLayer(renderer.layer);
+
     this.heatmapWorkflow = new HeatmapWorkflow({
-      mapWorkspace: {
-        isVisible: () => this.mapController.isKpiVisible(),
-        setVisible: (visible) => this.mapController.setKpiVisible(visible),
-      },
-      dataSource: this.signalQualityService,
-      renderer: visualizer,
+      signalQualityApi: this.signalQualityApi,
+      renderer,
       legend,
     });
 
@@ -172,9 +189,12 @@ export class CompositionRoot {
             this.measurementReview.getRejectedIds(),
             true,
           );
-          // Finalizing is what changes the approved-measurement set the heatmap reads; refresh
-          // it now rather than leaving stale tiles until someone hits "Refresh data".
-          if (saved) await this.heatmapWorkflow.refresh();
+          // No cross-workflow refresh. Operator refreshes heatmap explicitly.
+          if (saved) {
+            showFadingAdvisory(
+              "Result finalized. Refresh the heatmap to see updated Signal Quality.",
+            );
+          }
         })(),
       onSelectMeasurement: (id: string, additive: boolean) =>
         this.measurementReview.selectById(id, additive),
@@ -190,8 +210,6 @@ export class CompositionRoot {
       onToggleKpi: () => void this.heatmapWorkflow.toggle(),
       onRefreshKpi: () => void this.heatmapWorkflow.refresh(),
       onPaletteChange: (palette: SignalQualityPalette) => {
-        // Intermediate edits (e.g. a stop dragged past a neighbor) can be briefly invalid;
-        // the map simply keeps its last valid palette until the edit settles.
         try {
           this.heatmapWorkflow.setPalette(palette);
         } catch {

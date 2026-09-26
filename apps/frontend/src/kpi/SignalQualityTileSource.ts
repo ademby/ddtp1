@@ -1,9 +1,7 @@
+import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
+import { SIGNAL_QUALITY_GRID_SIZE } from "@drone-drive/contracts/signal-quality";
 import ImageTileSource from "ol/source/ImageTile.js";
 import { createXYZ } from "ol/tilegrid.js";
-import {
-  SIGNAL_QUALITY_GRID_SIZE,
-  signalQualityTilePath,
-} from "@drone-drive/contracts/signal-quality";
 import { uiConfig } from "../ui.config.js";
 import {
   paletteToWorkerStops,
@@ -24,10 +22,8 @@ interface TileResult {
 }
 
 /**
- * Fetches pre-interpolated numeric grid tiles from the backend and colorizes them client-side
- * (via the same worker used offline, on a "grid-tile" message that skips interpolation).
- * The backend computes values; this class only ever decides how to paint them, so palette
- * changes are a `setRange` call away, no refetch.
+ * Fetches pre-interpolated numeric grid tiles via SignalQualityApi and colorizes them
+ * client-side (worker). Never performs raw fetch or knows apiBaseUrl.
  */
 export class SignalQualityTileSource extends ImageTileSource {
   private readonly worker: Worker;
@@ -44,7 +40,7 @@ export class SignalQualityTileSource extends ImageTileSource {
   private max = 100;
   private version = "unversioned";
 
-  constructor(private readonly apiBaseUrl: string) {
+  constructor(private readonly api: SignalQualityApi) {
     super({
       projection: "EPSG:3857",
       tileGrid: TILE_GRID,
@@ -102,13 +98,12 @@ export class SignalQualityTileSource extends ImageTileSource {
     x: number,
     y: number,
   ): Promise<ImageBitmap> {
-    const path = signalQualityTilePath({ z, x, y });
-    const response = await fetch(
-      `${this.apiBaseUrl}${path}?v=${encodeURIComponent(this.version)}`,
+    const tile = await this.api.getTile({ z, x, y });
+    // Transfer a copy so the source retains ownership of the typed array if needed later.
+    const grid = tile.buffer.slice(
+      tile.byteOffset,
+      tile.byteOffset + tile.byteLength,
     );
-    if (!response.ok)
-      throw new Error(`Failed to load Signal Quality tile: ${response.status}`);
-    const grid = await response.arrayBuffer();
 
     const id = this.nextRequestId++;
     return new Promise<ImageBitmap>((resolve, reject) => {
