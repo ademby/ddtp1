@@ -1,4 +1,4 @@
-import { AdminNode } from '../domain/AdminNode';
+import { AdminNode } from './AdminNode';
 
 export interface NavigationState {
   selected: AdminNode | null;

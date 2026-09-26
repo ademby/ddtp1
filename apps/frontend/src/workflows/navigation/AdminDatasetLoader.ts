@@ -1,8 +1,8 @@
 import GeoJSON from 'ol/format/GeoJSON.js';
 import type Feature from 'ol/Feature.js';
 import type { ProjectionLike } from 'ol/proj.js';
-import { AdminNode } from '../domain/AdminNode.js';
-import { AdminTree } from '../domain/AdminTree.js';
+import { AdminNode } from './AdminNode.js';
+import { AdminTree } from './AdminTree.js';
 
 export interface AdminDataset {
   features: Feature[];

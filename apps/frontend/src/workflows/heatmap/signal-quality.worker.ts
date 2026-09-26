@@ -1,5 +1,5 @@
 import { DEFAULT_SIGNAL_QUALITY_PALETTE, paletteToWorkerStops } from "./SignalQualityPalette";
-import { uiConfig } from "../ui.config.js";
+import { uiConfig } from "../../ui.config.js";
 
 const TILE_SIZE = uiConfig.tileSize;
 const CELL_SIZE_DEG = 0.01;

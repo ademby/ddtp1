@@ -7,7 +7,7 @@ import type { Extent } from "ol/extent.js";
 import { getCenter } from "ol/extent.js";
 import type Projection from "ol/proj/Projection.js";
 import { BasemapManager } from "./BasemapManager.js";
-import BasemapControl from "../ui/BasemapControl.js";
+import BasemapControl from "./BasemapControl.js";
 
 /**
  * Shared map surface and basemap. Feature layers, interactions, and feature UI

@@ -1,4 +1,4 @@
-import type { SignalQualityPalette } from '../kpi/SignalQualityPalette.js';
+import type { SignalQualityPalette } from './SignalQualityPalette.js';
 
 export interface HeatmapOperationsViewCallbacks {
   onToggle(): void;

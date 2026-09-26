@@ -2,7 +2,7 @@ import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
 import { SIGNAL_QUALITY_GRID_SIZE } from "@drone-drive/contracts/signal-quality";
 import DataTileSource from "ol/source/DataTile.js";
 import { createXYZ } from "ol/tilegrid.js";
-import { uiConfig } from "../ui.config.js";
+import { uiConfig } from "../../ui.config.js";
 import type { SignalQualityPalette } from "./SignalQualityPalette.js";
 
 const GRID_SIZE = SIGNAL_QUALITY_GRID_SIZE;

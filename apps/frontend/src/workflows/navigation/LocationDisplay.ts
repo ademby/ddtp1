@@ -1,6 +1,6 @@
 import Control from "ol/control/Control.js";
 import { CLASS_CONTROL, CLASS_UNSELECTABLE } from "ol/css.js";
-import type { AdminNode } from "../domain/AdminNode.js";
+import type { AdminNode } from "./AdminNode.js";
 
 export const CLASS_SELECTED = "selected";
 

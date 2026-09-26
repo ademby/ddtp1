@@ -2,7 +2,7 @@ import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
 import type BaseLayer from "ol/layer/Base.js";
 import TileLayer from "ol/layer/Tile.js";
 import WebGLTileLayer from "ol/layer/WebGLTile.js";
-import { uiConfig } from "../ui.config.js";
+import { uiConfig } from "../../ui.config.js";
 import {
   DEFAULT_SIGNAL_QUALITY_PALETTE,
   type SignalQualityPalette,

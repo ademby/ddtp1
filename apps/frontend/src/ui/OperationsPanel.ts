@@ -1,13 +1,13 @@
 import type { Mission } from '@drone-drive/contracts/mission';
 import type { MissionResult } from '@drone-drive/contracts/mission-result';
-import type { MissionEditorMode } from '../mission/MissionEditor.js';
+import type { MissionEditorMode } from '../workflows/mission/MissionEditor.js';
 import {
   MissionOperationsView,
   type MissionFormData,
   type MissionOperationsViewCallbacks,
-} from './MissionOperationsView.js';
-import { HeatmapOperationsView } from './HeatmapOperationsView.js';
-import type { SignalQualityPalette } from '../kpi/SignalQualityPalette.js';
+} from '../workflows/mission/MissionOperationsView.js';
+import { HeatmapOperationsView } from '../workflows/heatmap/HeatmapOperationsView.js';
+import type { SignalQualityPalette } from '../workflows/heatmap/SignalQualityPalette.js';
 
 export interface OperationsPanelCallbacks extends MissionOperationsViewCallbacks {
   onToggleKpi(): void;

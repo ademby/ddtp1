@@ -1,5 +1,5 @@
-import type { AdminNode } from '../domain/AdminNode.js';
-import { rankLocationOptions } from '../search/locationSearchRanking.js';
+import type { AdminNode } from './AdminNode.js';
+import { rankLocationOptions } from './locationSearchRanking.js';
 
 export interface LocationSearchOption {
   readonly node: AdminNode;

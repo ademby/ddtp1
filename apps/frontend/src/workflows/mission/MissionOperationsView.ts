@@ -1,7 +1,7 @@
 import type { DroneId, Mission, MissionState } from '@drone-drive/contracts/mission';
-import type { MissionEditorMode } from '../mission/MissionEditor.js';
+import type { MissionEditorMode } from './MissionEditor.js';
 import type { MissionResult } from '@drone-drive/contracts/mission-result';
-import { colorMeasurementsBySignalQuality } from '../kpi/SignalQualityPalette.js';
+import { colorMeasurementsBySignalQuality } from '../heatmap/SignalQualityPalette.js';
 
 export interface MissionOperationsViewCallbacks {
   onNew(): void;

@@ -5,16 +5,16 @@ import type { SelectEvent } from "ol/interaction/Select.js";
 import LayerGroup from "ol/layer/Group.js";
 import VectorLayer from "ol/layer/Vector.js";
 import VectorSource from "ol/source/Vector.js";
-import type { AdminDataset } from "../data/AdminDatasetLoader.js";
-import { AdminNode } from "../domain/AdminNode.js";
-import type { NavigationState } from "../map/NavigationState.js";
-import { MapController } from "../map/MapController.js";
+import type { AdminDataset } from "./AdminDatasetLoader.js";
+import { AdminNode } from "./AdminNode.js";
+import type { NavigationState } from "./NavigationState.js";
+import { MapController } from "../../map/MapController.js";
 import {
   activeStyle,
   contextStyle,
   hoverStyle,
   selectedStyle,
-} from "../map/styles.js";
+} from "../../map/styles.js";
 import { shouldUseDefaultTransition } from "./navigationTransition.js";
 
 export interface NavigationSearchOption {

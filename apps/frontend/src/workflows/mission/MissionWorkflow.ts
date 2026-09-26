@@ -3,17 +3,17 @@ import type { MissionResult, MissionResultApi } from "@drone-drive/contracts/mis
 import LayerGroup from "ol/layer/Group.js";
 import VectorLayer from "ol/layer/Vector.js";
 import VectorSource from "ol/source/Vector.js";
-import { droneId, missionId } from "../domain/missionIds.js";
-import { MapController } from "../map/MapController.js";
-import { measurementStyle, missionStyle } from "../map/styles.js";
+import { droneId, missionId } from "./missionIds.js";
+import { MapController } from "../../map/MapController.js";
+import { measurementStyle, missionStyle } from "../../map/styles.js";
 import {
   MissionEditor,
   type MissionEditorMode,
-} from "../mission/MissionEditor.js";
+} from "./MissionEditor.js";
 import {
   MeasurementReviewController,
   type MeasurementReviewCallbacks,
-} from "../mission/MeasurementReview.js";
+} from "./MeasurementReview.js";
 
 export interface MissionFormData {
   readonly name: string;

@@ -1,4 +1,4 @@
-import type { AdminNode } from '../domain/AdminNode.js';
+import type { AdminNode } from './AdminNode.js';
 
 export function shouldUseDefaultTransition(
   source: AdminNode | null,

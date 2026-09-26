@@ -1,5 +1,5 @@
 import Control from 'ol/control/Control.js';
-import { paletteToCssGradient, type SignalQualityPalette } from '../kpi/SignalQualityPalette.js';
+import { paletteToCssGradient, type SignalQualityPalette } from './SignalQualityPalette.js';
 
 export default class SignalQualityLegend extends Control {
   private readonly minLabel: HTMLSpanElement;

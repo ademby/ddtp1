@@ -1,4 +1,4 @@
-import type { AdminNode } from '../domain/AdminNode.js';
+import type { AdminNode } from './AdminNode.js';
 import LocationDisplay, { CLASS_SELECTED } from './LocationDisplay.js';
 
 export const CLASS_BREADCRUMB = 'breadcrumb';

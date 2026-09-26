@@ -1,12 +1,12 @@
 import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
-import type { SignalQualityRenderer } from "../kpi/SignalQualityRenderer.js";
+import type { SignalQualityRenderer } from "./SignalQualityRenderer.js";
 import {
   DEFAULT_SIGNAL_QUALITY_PALETTE,
   isValidPalette,
   type SignalQualityPalette,
-} from "../kpi/SignalQualityPalette.js";
-import { MapController } from "../map/MapController.js";
-import SignalQualityLegend from "../ui/SignalQualityLegend.js";
+} from "./SignalQualityPalette.js";
+import { MapController } from "../../map/MapController.js";
+import SignalQualityLegend from "./SignalQualityLegend.js";
 
 export interface HeatmapLegend {
   readonly element: HTMLElement;

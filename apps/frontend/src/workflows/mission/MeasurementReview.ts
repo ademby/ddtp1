@@ -17,7 +17,7 @@ import {
   colorMeasurementsBySignalQuality,
   DEFAULT_SIGNAL_QUALITY_PALETTE,
   type SignalQualityPalette,
-} from "../kpi/SignalQualityPalette.js";
+} from "../heatmap/SignalQualityPalette.js";
 
 /** Features built per animation frame while loading a review result. */
 const MEASUREMENT_BATCH_SIZE = 500;

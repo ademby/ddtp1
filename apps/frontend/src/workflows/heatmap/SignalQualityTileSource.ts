@@ -2,7 +2,7 @@ import type { SignalQualityApi } from "@drone-drive/contracts/signal-quality";
 import { SIGNAL_QUALITY_GRID_SIZE } from "@drone-drive/contracts/signal-quality";
 import ImageTileSource from "ol/source/ImageTile.js";
 import { createXYZ } from "ol/tilegrid.js";
-import { uiConfig } from "../ui.config.js";
+import { uiConfig } from "../../ui.config.js";
 import {
   paletteToWorkerStops,
   type SignalQualityPalette,
