@@ -6,11 +6,11 @@ import { uiConfig } from "../../ui.config.js";
 import type { SignalQualityPalette } from "./SignalQualityPalette.js";
 
 const GRID_SIZE = SIGNAL_QUALITY_GRID_SIZE;
+const MAX_NUMERIC_TILES = uiConfig.maxNumericTileCache;
 const TILE_GRID = createXYZ({
   tileSize: GRID_SIZE,
   maxZoom: uiConfig.maxZoom,
 });
-const MAX_NUMERIC_TILES = 512;
 
 type NumericTile = Float32Array;
 

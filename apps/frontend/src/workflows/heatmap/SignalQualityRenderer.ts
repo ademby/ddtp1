@@ -57,18 +57,18 @@ export class HttpSignalQualityRenderer implements SignalQualityRenderer {
       this.layer = new TileLayer({
         source: this.source,
         zIndex: 45,
-        opacity: 0.78,
+        opacity: uiConfig.layerOpacity,
         visible: false,
-        cacheSize: 1024,
+        cacheSize: uiConfig.layerCacheSize,
       });
     } else {
       this.source = new SignalQualityTileSource_ForWebGL(api);
       this.layer = new WebGLTileLayer({
         source: this.source,
         zIndex: 45,
-        opacity: 0.78,
+        opacity: uiConfig.layerOpacity,
         visible: false,
-        cacheSize: 1024,
+        cacheSize: uiConfig.layerCacheSize,
         style: buildWebGlStyle(this.min, this.max, this.palette),
       });
     }

@@ -1,36 +1,22 @@
-import { DEFAULT_SIGNAL_QUALITY_PALETTE, paletteToWorkerStops } from "./SignalQualityPalette";
+import {
+  DEFAULT_SIGNAL_QUALITY_PALETTE,
+  paletteToWorkerStops,
+} from "./SignalQualityPalette";
 import { uiConfig } from "../../ui.config.js";
 
 const TILE_SIZE = uiConfig.tileSize;
-const CELL_SIZE_DEG = 0.01;
-/** Offline/local IDW radii; production tiles use backend projection config. */
-const DEFAULT_RADIUS_BY_ZOOM: Record<number, number> = {
-  5: 12000,
-  6: 10000,
-  7: 8000,
-  8: 6000,
-  9: 4500,
-  10: 3000,
-  11: 2200,
-  12: 1500,
-  13: 1000,
-  14: 700,
-  15: 500,
-  16: 350,
-  17: 250,
-  18: 180,
-  19: 140,
-};
+const TILE_PIXEL_ALPHA = uiConfig.tilePixelAlpha;
+const LUT_SIZE = 1024;
 
 let min = 0;
 let max = 100;
-const LUT_SIZE = 1024;
 let paletteLut = new Uint8Array(LUT_SIZE * 4);
 
-// The active color ramp. Seeded with the same defaults as `DEFAULT_SIGNAL_QUALITY_PALETTE`
-// (kept as plain tuples here since workers can't import `HeatmapWorkflow`'s module graph);
-// `HeatmapWorkflow` pushes replacements via a `"palette"` message so edits repaint live.
-let stops: Array<[number, string]> = paletteToWorkerStops(DEFAULT_SIGNAL_QUALITY_PALETTE);
+// Seeded with the same defaults as `DEFAULT_SIGNAL_QUALITY_PALETTE`.
+// HeatmapWorkflow pushes replacements via a `"palette"` message so edits repaint live.
+let stops: Array<[number, string]> = paletteToWorkerStops(
+  DEFAULT_SIGNAL_QUALITY_PALETTE,
+);
 buildPaletteLut();
 
 self.onmessage = async (
@@ -55,7 +41,7 @@ self.onmessage = async (
     }
     return;
   }
-  // The new numeric tile approach
+
   if (message.type === "grid-tile") {
     const values = new Float32Array(message.grid);
     const bitmap = await renderPrecomputedGrid(values, message.size);
@@ -63,20 +49,16 @@ self.onmessage = async (
       { type: "tile", id: message.id, bitmap },
       { transfer: [bitmap] },
     );
-    return;
   }
 };
 
 function createEmptyTile(): Promise<ImageBitmap> {
   const canvas = new OffscreenCanvas(TILE_SIZE, TILE_SIZE);
   const ctx = canvas.getContext("2d");
-
   if (!ctx) {
     throw new Error("Could not create 2D context");
   }
-
   ctx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
-
   return createImageBitmap(canvas);
 }
 
@@ -89,13 +71,11 @@ function parseHexRgb(hex: string): [number, number, number] {
   ];
 }
 
-// The new numeric tile approach
-
 /**
- * Colorizes a numeric grid that was already interpolated server-side (see
- * `SignalQualityTileSource` in backend mode). No interpolation happens here — only the
- * value -> color/opacity mapping, which is the part ADR-0004 keeps client-side so palettes
- * can change without refetching data.
+ * Colorizes a numeric grid already interpolated server-side.
+ * No interpolation here — only value → color/opacity (ADR-0004).
+ * NaN cells are fully transparent (no-data).
+ * Floating-point values are preserved through LUT indexing (no integer cast of KPI values).
  */
 async function renderPrecomputedGrid(
   grid: Float32Array,
@@ -118,7 +98,7 @@ async function renderPrecomputedGrid(
     image.data[offset] = paletteLut[lutOffset];
     image.data[offset + 1] = paletteLut[lutOffset + 1];
     image.data[offset + 2] = paletteLut[lutOffset + 2];
-    image.data[offset + 3] = 215;
+    image.data[offset + 3] = TILE_PIXEL_ALPHA;
   }
 
   const small = new OffscreenCanvas(size, size);

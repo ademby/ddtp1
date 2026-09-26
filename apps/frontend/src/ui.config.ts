@@ -23,6 +23,21 @@ export const uiConfig = {
 
   /** Max zoom for Signal Quality tile grids. */
   maxZoom: 19,
+
+  /** Layer opacity applied to the Signal Quality OL layer. */
+  layerOpacity: 0.78,
+
+  /**
+   * Per-pixel alpha (0–255) for colorized Canvas tiles when a cell has data.
+   * No-data cells (NaN) are always fully transparent.
+   */
+  tilePixelAlpha: 215,
+
+  /** Soft cap on in-memory numeric (Float32) tile cache entries per source. */
+  maxNumericTileCache: 512,
+
+  /** OpenLayers tile layer image cache size. */
+  layerCacheSize: 1024,
 } as const;
 
 export type UiConfig = typeof uiConfig;
