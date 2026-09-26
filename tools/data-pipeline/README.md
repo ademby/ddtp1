@@ -9,13 +9,12 @@ Development-time generators and preprocessors. Not part of backend or frontend r
 | `admin-boundaries/reports/` | Preprocess reports (non-runtime) |
 | `signal-quality/generate.py` | Synthetic signal-quality dataset generator |
 
-**Runtime output** (only datasets the browser/API seed consume):
+**Outputs under `apps/frontend/public/data/`:**
 
 ```text
-apps/frontend/public/data/
-  boundaries.geojson
-  manifest.json
-  signal-quality.json
+boundaries.geojson   # browser admin navigation (runtime)
+manifest.json        # browser admin navigation (runtime)
+signal-quality.json  # DB seed input only (`npm run db:seed-signal-quality`); not loaded by the frontend
 ```
 
 Do not place reports or source inputs under `public/data/`.

@@ -17,7 +17,7 @@ This is the ordered implementation backlog for transforming the current prototyp
 
 | ID | Status | Area | Depends on |
 |---|---|---|---|
-| R-00 | [ ] | Baseline + working constraints | — |
+| R-00 | [x] | Baseline + working constraints | — |
 | R-01 | [x] | Architecture reconciliation / source of truth | R-00 |
 | R-02 | [x] | Contracts and schemas redesign | R-01 |
 | R-03 | [x] | Backend domain/persistence alignment | R-02 |
@@ -29,11 +29,11 @@ This is the ordered implementation backlog for transforming the current prototyp
 | R-09 | [x] | KPI numeric-tile configuration + rendering stabilization | R-02, R-04, R-06 |
 | R-10 | [x] | Scripts/data/runtime hierarchy cleanup | R-04, R-08 |
 | R-11 | [x] | Documentation/UML reconciliation | R-03, R-07, R-09, R-10 |
-| R-12 | [ ] | Final integration pass / prototype-to-product cleanup | R-11 |
+| R-12 | [x] | Final integration pass / prototype-to-product cleanup | R-11 |
 
 ## Current progress assessment
 
-Redesign tickets R-01..R-11 are complete. Remaining work is R-12 (final integration).
+Redesign tickets R-01..R-12 are complete.
 
 Established and reflected in code + docs:
 - monorepo/application boundaries and shared contracts;

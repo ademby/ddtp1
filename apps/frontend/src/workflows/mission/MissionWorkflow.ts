@@ -1,4 +1,4 @@
-import type { MissionApi, Mission, MissionId, DroneId } from "@drone-drive/contracts/mission";
+import type { MissionApi, Mission, MissionId } from "@drone-drive/contracts/mission";
 import type { MissionResult, MissionResultApi } from "@drone-drive/contracts/mission-result";
 import LayerGroup from "ol/layer/Group.js";
 import VectorLayer from "ol/layer/Vector.js";
@@ -15,12 +15,8 @@ import {
   type MeasurementReviewCallbacks,
 } from "./MeasurementReview.js";
 
-export interface MissionFormData {
-  readonly name: string;
-  readonly droneId: DroneId;
-  readonly earliestStart: string;
-  readonly dispatchDeadline: string | null;
-}
+export type { MissionFormData } from "./MissionOperationsView.js";
+import type { MissionFormData } from "./MissionOperationsView.js";
 
 export interface MissionWorkflowView {
   renderMissions(missions: readonly Mission[], selectedId: string | null): void;

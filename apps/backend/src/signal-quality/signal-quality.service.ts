@@ -9,7 +9,7 @@ import type {
 import { signalQualityConfig } from "./signal-quality.config.js";
 
 const KPI_KEY = "signalQuality";
-export const TILE_RESOLUTION = SIGNAL_QUALITY_GRID_SIZE;
+const TILE_RESOLUTION = SIGNAL_QUALITY_GRID_SIZE;
 
 const DEG_TO_RAD = Math.PI / 180;
 const METERS_PER_DEGREE = 111320;

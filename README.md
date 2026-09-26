@@ -236,7 +236,7 @@ Numeric tiles are cacheable independently of palette changes. The display uses a
 | Preprocess reports | `tools/data-pipeline/admin-boundaries/reports/` |
 | Runtime boundaries + manifest | `apps/frontend/public/data/` |
 | Signal-quality generator | `tools/data-pipeline/signal-quality/generate.py` |
-| Runtime signal-quality JSON | `apps/frontend/public/data/signal-quality.json` |
+| Seed input signal-quality JSON | `apps/frontend/public/data/signal-quality.json` (DB seed only) |
 | DB seed scripts | `tools/db/` |
 
 ## Development notes

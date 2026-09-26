@@ -15,11 +15,8 @@ const revisionId = "prototype-signal-quality-revision";
 const routeId = "prototype-signal-quality-route";
 
 const connectionString =
+  process.env.DATABASE_URL ??
   "postgresql://postgres:postgres@localhost:5432/drone_drive";
-  
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set.");
-}
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });

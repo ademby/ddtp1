@@ -23,3 +23,5 @@ __pycache__/
 
 # geoBoundaries source GeoJSON (downloaded by preprocess.py)
 tools/data-pipeline/admin-boundaries/input/**/*.geojson
+
+apps/frontend/public/data/

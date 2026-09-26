@@ -10,8 +10,8 @@ import { HeatmapOperationsView } from '../workflows/heatmap/HeatmapOperationsVie
 import type { SignalQualityPalette } from '../workflows/heatmap/SignalQualityPalette.js';
 
 export interface OperationsPanelCallbacks extends MissionOperationsViewCallbacks {
-  onToggleKpi(): void;
-  onRefreshKpi(): void;
+  onToggleSignalQuality(): void;
+  onRefreshSignalQuality(): void;
   onPaletteChange(palette: SignalQualityPalette): void;
   onPaletteReset(): void;
 }
@@ -46,7 +46,7 @@ export default class OperationsPanel {
               <button class="panel-nav-card missions-nav" type="button"><strong>Mission control</strong><span>Create, edit, and review flight plans</span></button>
             </div>
             <div class="panel-group">
-              <h3>Heatmap</h3>
+              <h3>Signal quality</h3>
               <button class="panel-nav-card heatmap-nav" type="button"><strong>Signal quality</strong><span>Show coverage strength on the map</span></button>
             </div>
           </div>
@@ -137,8 +137,8 @@ export default class OperationsPanel {
     };
     this.missionView = new MissionOperationsView(this.views.missions, this.views.editor, this.views.review, callbacks);
     this.heatmapView = new HeatmapOperationsView(this.views.heatmap, initialPalette, {
-      onToggle: callbacks.onToggleKpi,
-      onRefresh: callbacks.onRefreshKpi,
+      onToggle: callbacks.onToggleSignalQuality,
+      onRefresh: callbacks.onRefreshSignalQuality,
       onPaletteChange: callbacks.onPaletteChange,
       onPaletteReset: callbacks.onPaletteReset,
     });
@@ -206,7 +206,7 @@ export default class OperationsPanel {
       missions: 'Missions',
       editor: 'Mission editor',
       review: 'Mission validation',
-      heatmap: 'Heatmap',
+      heatmap: 'Signal quality',
     };
     this.viewTitle.textContent = titles[view];
   }

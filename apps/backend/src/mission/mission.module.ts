@@ -7,6 +7,5 @@ import { MissionDispatchSweeper } from './mission-dispatch-sweeper.js';
 @Module({
   controllers: [MissionController],
   providers: [PrismaMissionRepository, MissionService, MissionDispatchSweeper],
-  exports: [PrismaMissionRepository, MissionService],
 })
 export class MissionModule {}

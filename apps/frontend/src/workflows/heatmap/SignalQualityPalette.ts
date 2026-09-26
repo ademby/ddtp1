@@ -54,7 +54,7 @@ export function paletteToCssGradient(palette: SignalQualityPalette): string {
 }
 
 /** The one KPI that drives measurement point/row color today. Matches the backend's own
- * `KPI_KEY` (see `apps/backend/src/signal-quality.service.ts`) and the seed script's output —
+ * `KPI_KEY` (see `apps/backend/src/signal-quality/signal-quality.service.ts`) and the seed script's output —
  * camelCase, not the display label used in the legend. */
 export const SIGNAL_QUALITY_KPI_KEY = "signalQuality";
 

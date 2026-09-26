@@ -62,7 +62,7 @@ export class HeatmapOperationsView {
       : 0.5;
     this.renderPalette([
       ...current.slice(0, -1),
-      { offset: Math.round(midpoint * 100) / 100, color: '#808080' }, // IMPROVE ME
+      { offset: Math.round(midpoint * 100) / 100, color: '#808080' },
       current[current.length - 1],
     ]);
     this.commit();

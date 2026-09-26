@@ -153,8 +153,8 @@ export class CompositionRoot {
         missionWorkflowRef?.review.approveSelected(),
       onRejectSelectedMeasurements: () =>
         missionWorkflowRef?.review.rejectSelected(),
-      onToggleKpi: () => void this.heatmapWorkflow.toggle(),
-      onRefreshKpi: () => void this.heatmapWorkflow.refresh(),
+      onToggleSignalQuality: () => void this.heatmapWorkflow.toggle(),
+      onRefreshSignalQuality: () => void this.heatmapWorkflow.refresh(),
       onPaletteChange: (palette: SignalQualityPalette) => {
         try {
           this.heatmapWorkflow.setPalette(palette);
