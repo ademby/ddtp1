@@ -11,3 +11,5 @@ We're keeping both as real adapters behind one `KpiRenderer` interface (already 
 Selection between adapters is a static `kpiRenderer: 'canvas' | 'webgl'` flag in `ui.config.ts`, not a runtime operator-facing toggle: WebGL's current output quality is not operator-ready. The dead commented-out WebGL block inside `MapController` is still removed regardless (ADR-0005 moves that code into `HeatmapWorkflow`'s own `LayerGroup`), so this ADR only concerns keeping the adapter, not its old location.
 
 `ui.config.ts` also gains a `workerPoolSize` knob, defaulted to `1` (today's behavior), as the seam for the round-robin work later.
+
+**Implementation note (R-06+):** the shared interface is named `SignalQualityRenderer` (`HttpSignalQualityRenderer`); Canvas and WebGL tile sources sit behind it. Historical prototype names `SignalQualityVisualizer` / `HeatmapRenderer` no longer exist in code.

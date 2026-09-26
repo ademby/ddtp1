@@ -63,7 +63,7 @@ Frontend HTTP mode:
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-The frontend uses the in-memory mission adapter when `VITE_API_BASE_URL` is unset. Setting it switches mission, result, and signal-quality requests to the NestJS backend.
+`VITE_API_BASE_URL` is required. The frontend talks only to the NestJS backend over HTTP (MockMissionApi has been removed).
 
 ## Development
 
@@ -97,7 +97,7 @@ npm run dev:drone
 npm run dev:frontend
 ```
 
-For frontend-only offline/mock development, `dev:frontend` works without PostgreSQL.
+Frontend alone (`dev:frontend`) still requires a reachable backend for mission, result, and Signal Quality APIs.
 
 Check the database with:
 
@@ -223,13 +223,9 @@ Result uploads are immutable. Validation is represented by immutable result revi
 
 ## Signal-quality surface
 
-The frontend supports two interchangeable modes.
+The backend returns raw interpolated **numeric** tiles and range/version metadata. Presentation (palette, opacity, thresholds) remains client-side. Canvas-worker rendering is the default; a WebGL adapter is retained behind `SignalQualityRenderer` (see `ui.config.ts` `kpiRenderer`).
 
-With `VITE_API_BASE_URL` set, the backend returns raw interpolated numeric tiles and range metadata. Presentation remains client-side.
-
-Without it, `apps/frontend/public/data/signal-quality.json` is interpolated in a Web Worker.
-
-Both modes intentionally separate numeric data from presentation colors. The signal-quality display uses a dark-red-to-light-blue scale and a no-data representation rather than replacing values with pre-colored backend output.
+Numeric tiles are cacheable independently of palette changes. The display uses a dark-red-to-light-blue scale and transparent no-data cells rather than pre-colored backend output.
 
 ## Administrative data
 

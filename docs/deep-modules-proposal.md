@@ -1,9 +1,9 @@
 # Deep-module architecture proposal
 
-Design-only (R-05). Settled via ownership grill. Criterion: **substantial functionality + simple interface + hidden complexity**.  
+Design settled in R-05 and implemented through R-06..R-08. Criterion: **substantial functionality + simple interface + hidden complexity**.  
 Guiding question: **whose responsibility is this?**
 
-Physical file moves are **R-08**. This document locks **ownership, interfaces, and dependency rules**.
+This document remains the ownership / interface reference. Physical hierarchy and MapWorkspace removal are done; do not reintroduce pass-through shims.
 
 ---
 
@@ -221,7 +221,7 @@ class HeatmapWorkflow {
 
 ---
 
-## Hierarchy principle (execute in R-08)
+## Hierarchy principle (implemented)
 
 ```
 apps/frontend/src/
@@ -306,27 +306,17 @@ New workflow + Api + renderer pattern; no generic KPI framework in this redesign
 
 ---
 
-## Explicit non-goals (R-05 / redesign tickets)
+## Explicit non-goals (still out of scope)
 
 - Implementing SSE or any live channel  
 - Generic multi-KPI framework  
 - `ExecutionAttempt` entity  
 - LayerGroup registry on MapController  
 - Deleting WebGL adapter  
-- Frontend MockMissionApi  
-- Physical folder moves (R-08)  
-- Full MapInteractionLock API (R-07; principle only here)
+- Frontend MockMissionApi (removed; do not restore)
 
 ---
 
-## R-06 implementation order (suggested)
+## Implementation status
 
-1. `HttpSignalQualityApi` full contract; tile sources use `getTile`; delete range-only service and inline fetches.  
-2. `SignalQualityRenderer` absorbs visualizer + MapController KPI APIs; workflow owns layer attach.  
-3. Remove finalize→heatmap.refresh; add fading advisory on finalize success.  
-4. Delete MockMissionApi; CompositionRoot always Http when configured.  
-5. Workflow-owned layers; delete `*MapWorkspace` (align with R-07 if split).  
-6. Slim CompositionRoot.  
-
-R-07 finishes interaction lock and any remaining layer moves.  
-R-08 applies hierarchy principle (paths under `workflows/...`).
+R-06..R-08 completed the ordered work: full `HttpSignalQualityApi`, `SignalQualityRenderer`, no cross-workflow finalize refresh (fading advisory only), MockMissionApi removed, workflow-owned layers, hierarchy under `workflows/`.

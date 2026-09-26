@@ -4,13 +4,13 @@ autonumber
 actor Operator
 participant "Operations panel" as Workspace
 participant "Mission workflow" as Planning
-participant "Map rendering boundary" as Map
-participant "Mission API adapter" as Api
+participant "MapController / mission layers" as Map
+participant "HttpMissionApi" as Api
 participant "Backend contract" as Backend
 
 Operator -> Workspace: Start new mission
 Workspace -> Planning: Enter planning mode
-Planning -> Map: Enable route drawing
+Planning -> Map: Enable route drawing (own layers)
 Operator -> Map: Draw route
 Map --> Planning: Candidate geometry
 

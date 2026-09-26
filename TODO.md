@@ -18,43 +18,32 @@ This is the ordered implementation backlog for transforming the current prototyp
 | ID | Status | Area | Depends on |
 |---|---|---|---|
 | R-00 | [ ] | Baseline + working constraints | — |
-| R-01 | [ ] | Architecture reconciliation / source of truth | R-00 |
-| R-02 | [ ] | Contracts and schemas redesign | R-01 |
-| R-03 | [ ] | Backend domain/persistence alignment | R-02 |
-| R-04 | [ ] | Configuration architecture | R-01 |
-| R-05 | [ ] | Deep-module architecture proposal (Matt/architecture agent) | R-01, R-02, R-04 |
-| R-06 | [ ] | Deep-module implementation | R-05 |
-| R-07 | [ ] | Frontend workflow/map-layer ownership refactor | R-01, R-06 |
-| R-08 | [ ] | Frontend feature-module/folder hierarchy | R-06, R-07 |
-| R-09 | [ ] | KPI numeric-tile configuration + rendering stabilization | R-02, R-04, R-06 |
-| R-10 | [ ] | Scripts/data/runtime hierarchy cleanup | R-04, R-08 |
-| R-11 | [ ] | Documentation/UML reconciliation | R-03, R-07, R-09, R-10 |
+| R-01 | [x] | Architecture reconciliation / source of truth | R-00 |
+| R-02 | [x] | Contracts and schemas redesign | R-01 |
+| R-03 | [x] | Backend domain/persistence alignment | R-02 |
+| R-04 | [x] | Configuration architecture | R-01 |
+| R-05 | [x] | Deep-module architecture proposal (Matt/architecture agent) | R-01, R-02, R-04 |
+| R-06 | [x] | Deep-module implementation | R-05 |
+| R-07 | [x] | Frontend workflow/map-layer ownership refactor | R-01, R-06 |
+| R-08 | [x] | Frontend feature-module/folder hierarchy | R-06, R-07 |
+| R-09 | [x] | KPI numeric-tile configuration + rendering stabilization | R-02, R-04, R-06 |
+| R-10 | [x] | Scripts/data/runtime hierarchy cleanup | R-04, R-08 |
+| R-11 | [x] | Documentation/UML reconciliation | R-03, R-07, R-09, R-10 |
 | R-12 | [ ] | Final integration pass / prototype-to-product cleanup | R-11 |
 
 ## Current progress assessment
 
-The project is **well beyond an initial prototype**, but the redesign is not yet complete.
+Redesign tickets R-01..R-11 are complete. Remaining work is R-12 (final integration).
 
-Already substantially established:
-- monorepo/application boundaries;
-- shared contracts package;
-- NestJS backend feature modules;
-- route-centric mission model;
-- immutable route/result revision direction;
-- backend-controlled execution direction;
-- numeric Signal Quality tile direction;
-- workflow-owned map/UI direction documented in ADRs;
-- Canvas/WebGL renderer seam documented.
-
-Still inconsistent or prototype-level:
-- contracts do not yet fully reflect the domain decisions (notably measurement/KPI ownership and runtime validation);
-- the documented workflow-owned `LayerGroup` direction is not fully reflected by the current `*MapWorkspace` interfaces;
-- configuration is not centralized by responsibility;
-- deep-module boundaries have not been systematically designed;
-- frontend hierarchy still reflects incremental prototype growth;
-- scripts/data organization is still mixed;
-- KPI tile/rendering configuration needs to be made explicit and experimentally tunable without coupling backend/frontend constants;
-- documentation, ADRs, UML, and code need a final reconciliation after implementation.
+Established and reflected in code + docs:
+- monorepo/application boundaries and shared contracts;
+- NestJS Mission / MissionResult / SignalQuality feature modules with event-based finalize invalidation;
+- route-centric missions; implicit execution (no `ExecutionAttempt`); immutable route and result revisions;
+- numeric Signal Quality tiles with client-side palette; Canvas default + retained WebGL adapter;
+- workflow-owned map layers and UI; thin MapController; no `*MapWorkspace` shims;
+- responsibility-based configuration (`ui.config.ts`, `signal-quality.config.ts`, contracts grid size, env for runtime);
+- feature-oriented frontend hierarchy under `workflows/`;
+- documentation/UML reconciled to implementation (R-11).
 
 ## Definition of done for the redesign phase
 

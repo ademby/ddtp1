@@ -12,7 +12,6 @@ class Mission {
   dispatchDeadline
 }
 class RouteRevision
-class ExecutionAttempt
 class MissionResult
 class ResultRevision
 class Measurement
@@ -40,8 +39,7 @@ OperationalArea "1" o-- "0..*" Mission : scopes
 OperationalArea "1" o-- "0..*" AdministrativeGeography : references
 Mission "1" *-- "1..*" RouteRevision : contains
 Mission "1" --> "1" Drone : assigned before dispatch
-Mission "1" *-- "0..*" ExecutionAttempt : records
-ExecutionAttempt "1" --> "0..1" MissionResult : produces
+Mission "1" --> "0..1" MissionResult : produces (implicit execution)
 MissionResult "1" *-- "1..*" Measurement : contains
 MissionResult "1" *-- "1..*" ResultRevision : is reviewed through
 ResultRevision "1" --> "0..*" Measurement : decides
@@ -51,15 +49,23 @@ MissionState <-- Mission : uses
 MeasurementDecision <-- ResultRevision : records
 
 note right of Mission
-  A failed mission can create
-  a new derived mission.
-  It is not retried in place.
+  Execution is implicit; there is no
+  first-class ExecutionAttempt entity.
+  A failed mission can create a new
+  derived mission; it is not retried
+  in place.
 end note
 
 note right of Measurement
   Raw measurements are immutable.
-  Rejected measurements remain
-  auditable but are excluded from
+  Derived KPI values are not part of
+  the measurement. Rejected measurements
+  remain auditable but are excluded from
   approved projections.
+end note
+
+note right of DataTile
+  Numeric values only.
+  Presentation colors stay client-side.
 end note
 @enduml

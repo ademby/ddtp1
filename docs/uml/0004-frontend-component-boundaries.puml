@@ -11,45 +11,52 @@ package "Frontend application" {
   [Navigation workflow] as Navigation
   [Mission workflow] as Mission
   [Heatmap workflow] as Heatmap
-  [Map rendering boundary] as Rendering
-  [Mission API adapter] as MissionApi
-  [Result API adapter] as ResultApi
-  [Projection API adapter] as ProjectionApi
-  [Local appearance preferences] as Preferences
+  [MapController] as MapCtl
+  [HttpMissionApi] as MissionApi
+  [HttpMissionResultApi] as ResultApi
+  [HttpSignalQualityApi] as SqApi
+  [SignalQualityRenderer] as Renderer
+  [Local palette / ui.config] as Preferences
 }
 
-cloud "Backend /api/v1" as Backend
+cloud "Backend /api" as Backend
 
 Root --> Shell
 Root --> Navigation
 Root --> Mission
 Root --> Heatmap
+Root --> MapCtl
 Shell --> Planning
 Shell --> Validation
 Shell --> Analysis
 Navigation --> Search
-Navigation --> Rendering
-Mission --> Rendering
+Navigation --> MapCtl : own layers + controls
+Mission --> MapCtl : own layers + interactions
 Mission --> MissionApi
-Validation --> ResultApi
-Heatmap --> ProjectionApi
+Mission --> ResultApi
+Heatmap --> MapCtl : own tile layer + legend
+Heatmap --> SqApi
+Heatmap --> Renderer
 Heatmap --> Preferences
-Rendering --> Preferences
+Renderer --> SqApi : getTile
 
 MissionApi --> Backend
 ResultApi --> Backend
-ProjectionApi --> Backend
+SqApi --> Backend
 
-note right of Rendering
-  Owns map layers, numeric tile source,
-  WebGL palette updates, hover values,
-  version switching, and CPU fallback.
-  Application tests do not depend on
-  OpenLayers internals.
+note right of MapCtl
+  Thin shell: OL Map, basemap,
+  shared view helpers only.
+  Feature layers belong to workflows.
+end note
+
+note right of Renderer
+  Canvas (default) or WebGL adapter.
+  Numeric tiles + client palette.
 end note
 
 note bottom of Backend
-  The browser consumes typed contracts.
-  It never communicates directly with a drone.
+  Browser consumes typed contracts.
+  Never talks to a drone directly.
 end note
 @enduml
