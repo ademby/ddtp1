@@ -1,13 +1,32 @@
 # Administrative boundary preprocessor
 
-This tool preprocesses a complete ADM0..ADMn collection of simplified GeoJSON files once during development/build time.
+Preprocesses a complete ADM0..ADMn collection of simplified GeoJSON files once during development/build time.
 
-It preserves the original feature properties and geometry and adds only:
+Adds only:
 
 - `adminLevel`
 - `parentId`
 
-It produces a single normalized `boundaries.geojson` and a `manifest.json`.
+Produces runtime `boundaries.geojson` + `manifest.json`, and separate preprocess reports.
+
+## Layout
+
+```text
+admin-boundaries/
+├── input/
+│   ├── detailed/      # source: hierarchy resolution
+│   └── simplified/    # source: runtime geometry
+├── reports/           # preprocess-report.json / .txt
+├── preprocess.py
+├── manual_review.py
+└── requirements.txt
+```
+
+## Source data
+
+If `input/detailed` or `input/simplified` is missing a complete ADM0..ADMn set, `preprocess.py` downloads Tunisia (default) from the [geoBoundaries API](https://www.geoboundaries.org/api.html) (`gbOpen`) into those directories. Override with `--iso` / `--release`.
+
+Attribution (CC BY / ODbL as per boundary metadata): Runfola et al. (2020) geoBoundaries, PLoS ONE.
 
 ## Contract
 
@@ -20,7 +39,13 @@ python3 -m pip install -r tools/data-pipeline/admin-boundaries/requirements.txt
 python3 tools/data-pipeline/admin-boundaries/preprocess.py
 ```
 
-The parent relationship is resolved with Shapely/GEOS using candidate bounding boxes followed by exact `covered_by` tests. Ambiguous or missing parents are treated as errors instead of guessed.
+Defaults:
 
-Source files live in `input/`. The generated runtime dataset is written to
-`apps/frontend/public/data/`.
+- `--iso` → `TUN`
+- `--release` → `gbOpen`
+- `--detailed` → `tools/data-pipeline/admin-boundaries/input/detailed`
+- `--simplified` → `tools/data-pipeline/admin-boundaries/input/simplified`
+- `--output` → `apps/frontend/public/data` (runtime only)
+- `--reports` → `tools/data-pipeline/admin-boundaries/reports`
+
+Parent relationships use Shapely/GEOS (bbox candidates + exact `covered_by`). Ambiguous or missing parents are errors or reported for review, not guessed silently.

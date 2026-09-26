@@ -86,10 +86,13 @@ packages/
 └── contracts/                 # shared frontend/backend mission types
 
 tools/
+├── clean.mjs, dev.mjs, test.mjs, watch-service.mjs  # lifecycle
+├── db/                        # database pod + seed scripts
 └── data-pipeline/
-    ├── admin-boundaries/      # source GeoJSON, preprocessing, review tools
-    │   └── input/
+    ├── admin-boundaries/      # source input/, preprocess, reports/
     └── signal-quality/        # signal-quality dataset generator
+
+apps/frontend/public/data/     # generated runtime datasets only
 
 tests/                         # cross-application workflow and API tests
 docs/                          # ADRs, specifications, and UML

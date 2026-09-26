@@ -14,6 +14,9 @@ Expected input layout:
         ├── geoBoundaries-TUN-ADM1_simplified.geojson
         └── ...
 
+If either directory lacks a complete ADM0..ADMn set, files are downloaded
+from the geoBoundaries API (default ISO=TUN, release=gbOpen) into place.
+
 Detailed geometries are used to derive the administrative hierarchy.
 Simplified geometries are used by the browser at runtime.
 
@@ -53,6 +56,8 @@ import argparse
 import json
 import re
 import sys
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -81,6 +86,135 @@ class Record:
 
 class PreprocessError(RuntimeError):
     pass
+
+
+
+# ---------------------------------------------------------------------------
+# geoBoundaries source fetch (when input/ is empty)
+# ---------------------------------------------------------------------------
+
+GEOBOUNDARIES_API = "https://www.geoboundaries.org/api/current/{release}/{iso}/ALL"
+DEFAULT_ISO = "TUN"
+DEFAULT_RELEASE = "gbOpen"
+
+
+def _http_get_json(url: str) -> Any:
+    req = urllib.request.Request(url, headers={"User-Agent": "ddtp-admin-boundaries/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise PreprocessError(f"geoBoundaries API HTTP {exc.code} for {url}") from exc
+    except Exception as exc:
+        raise PreprocessError(f"geoBoundaries API request failed for {url}: {exc}") from exc
+
+
+def _http_download(url: str, dest: Path) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    req = urllib.request.Request(url, headers={"User-Agent": "ddtp-admin-boundaries/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            dest.write_bytes(resp.read())
+    except Exception as exc:
+        if dest.exists():
+            dest.unlink(missing_ok=True)
+        raise PreprocessError(f"Failed to download {url} -> {dest}: {exc}") from exc
+
+
+def _present_levels(directory: Path) -> set[int]:
+    if not directory.is_dir():
+        return set()
+    levels: set[int] = set()
+    for path in directory.glob("*.geojson"):
+        match = LEVEL_RE.search(path.name)
+        if match:
+            levels.add(int(match.group(1)))
+    return levels
+
+
+def ensure_geoboundaries_inputs(
+    detailed_dir: Path,
+    simplified_dir: Path,
+    *,
+    iso: str = DEFAULT_ISO,
+    release: str = DEFAULT_RELEASE,
+) -> None:
+    """Download missing geoBoundaries GeoJSON into input dirs.
+
+    Queries the geoBoundaries API for the country, then downloads any
+    ADM level file that is not already present. Detailed files use
+    gjDownloadURL; simplified use simplifiedGeometryGeoJSON.
+    Filenames match the documented layout.
+    """
+    present_detailed = _present_levels(detailed_dir)
+    present_simplified = _present_levels(simplified_dir)
+    # Fast path: both sides already have contiguous ADM0..ADMn with same max.
+    if (
+        present_detailed
+        and present_detailed == present_simplified
+        and present_detailed == set(range(max(present_detailed) + 1))
+    ):
+        print(
+            f"geoBoundaries source files already present "
+            f"(ADM0..ADM{max(present_detailed)})."
+        )
+        return
+
+    api_url = GEOBOUNDARIES_API.format(release=release, iso=iso.upper())
+    print(f"Fetching geoBoundaries metadata: {api_url}")
+    meta = _http_get_json(api_url)
+    if not isinstance(meta, list) or not meta:
+        raise PreprocessError(
+            f"Unexpected geoBoundaries response for {iso}/{release}: expected non-empty list"
+        )
+
+    by_level: dict[int, dict[str, Any]] = {}
+    for entry in meta:
+        btype = str(entry.get("boundaryType") or "")
+        match = LEVEL_RE.search(btype)
+        if not match:
+            continue
+        by_level[int(match.group(1))] = entry
+
+    if 0 not in by_level:
+        raise PreprocessError(f"geoBoundaries returned no ADM0 for {iso}")
+
+    max_level = max(by_level)
+    missing_api = sorted(set(range(max_level + 1)) - set(by_level))
+    if missing_api:
+        raise PreprocessError(
+            f"geoBoundaries missing levels for {iso}: "
+            + ", ".join(f"ADM{x}" for x in missing_api)
+        )
+
+    downloaded = 0
+    for level in range(max_level + 1):
+        entry = by_level[level]
+        if level not in present_detailed:
+            url = entry.get("gjDownloadURL")
+            if not url:
+                raise PreprocessError(f"No gjDownloadURL for {iso} ADM{level}")
+            dest = detailed_dir / f"geoBoundaries-{iso.upper()}-ADM{level}.geojson"
+            print(f"  downloading detailed ADM{level} -> {dest}")
+            _http_download(str(url), dest)
+            downloaded += 1
+        if level not in present_simplified:
+            url = entry.get("simplifiedGeometryGeoJSON")
+            if not url:
+                raise PreprocessError(
+                    f"No simplifiedGeometryGeoJSON for {iso} ADM{level}"
+                )
+            dest = simplified_dir / (
+                f"geoBoundaries-{iso.upper()}-ADM{level}_simplified.geojson"
+            )
+            print(f"  downloading simplified ADM{level} -> {dest}")
+            _http_download(str(url), dest)
+            downloaded += 1
+
+    if downloaded:
+        print(f"geoBoundaries: downloaded {downloaded} file(s).")
+    else:
+        print("geoBoundaries source files are in place.")
 
 
 # ---------------------------------------------------------------------------
@@ -852,9 +986,11 @@ def write_outputs(
     manifest: dict[str, Any],
     report: dict[str, Any],
     output_dir: Path,
+    reports_dir: Path,
     geojson_metadata: Any
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+    reports_dir.mkdir(parents=True, exist_ok=True)
 
     boundaries = {
         "type": "FeatureCollection",
@@ -890,7 +1026,7 @@ def write_outputs(
         **report,
     }
 
-    (output_dir / "preprocess-report.json").write_text(
+    (reports_dir / "preprocess-report.json").write_text(
         json.dumps(report_json, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
@@ -986,7 +1122,7 @@ def write_outputs(
     if not report["sureGuesses"] and not report["manualReview"] and not report["invalidOverrides"]:
         lines.append("No hierarchy issues require review.")
 
-    (output_dir / "preprocess-report.txt").write_text(
+    (reports_dir / "preprocess-report.txt").write_text(
         "\n".join(lines),
         encoding="utf-8",
     )
@@ -1000,6 +1136,19 @@ def write_outputs(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build the normalized administrative-map dataset."
+    )
+
+    parser.add_argument(
+        "--iso",
+        default=DEFAULT_ISO,
+        help=f"ISO-3166 alpha-3 country code for geoBoundaries fetch (default: {DEFAULT_ISO}).",
+    )
+
+    parser.add_argument(
+        "--release",
+        default=DEFAULT_RELEASE,
+        choices=("gbOpen", "gbHumanitarian", "gbAuthoritative"),
+        help=f"geoBoundaries release type (default: {DEFAULT_RELEASE}).",
     )
 
     parser.add_argument(
@@ -1020,7 +1169,14 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=Path("apps/frontend/public/data"),
-        help="Runtime output directory.",
+        help="Runtime output directory (boundaries.geojson, manifest.json).",
+    )
+
+    parser.add_argument(
+        "--reports",
+        type=Path,
+        default=Path("tools/data-pipeline/admin-boundaries/reports"),
+        help="Preprocessing report output directory.",
     )
 
     parser.add_argument(
@@ -1092,6 +1248,13 @@ def main() -> int:
         return 2
 
     try:
+        ensure_geoboundaries_inputs(
+            args.detailed,
+            args.simplified,
+            iso=args.iso,
+            release=args.release,
+        )
+
         detailed = load_records(
             args.detailed,
             args.id_property,
@@ -1138,6 +1301,7 @@ def main() -> int:
             manifest=manifest,
             report=report,
             output_dir=args.output,
+            reports_dir=args.reports,
             geojson_metadata=simplified_metadata,
         )
 
@@ -1169,7 +1333,7 @@ def main() -> int:
         )
 
         print(
-            f"\nReport: {args.output / 'preprocess-report.txt'}"
+            f"\nReport: {args.reports / 'preprocess-report.txt'}"
         )
         print(
             f"Runtime data: {args.output / 'boundaries.geojson'}"

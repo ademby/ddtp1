@@ -6,7 +6,7 @@ The script reads:
                                 authoritative geometries for review
     apps/frontend/public/data/boundaries.geojson
                                 generated runtime dataset
-    apps/frontend/public/data/preprocess-report.json
+    tools/data-pipeline/admin-boundaries/reports/preprocess-report.json
 
 For each MANUAL_REVIEW item it walks from ADM0 down to the child's direct
 parent. At each level it shows the best geometric candidates. The operator
@@ -375,7 +375,7 @@ def main() -> int:
         return 2
 
     boundaries_path = args.output / "boundaries.geojson"
-    report_path = args.report or (args.output / "preprocess-report.json")
+    report_path = args.report or Path("tools/data-pipeline/admin-boundaries/reports/preprocess-report.json")
     manifest_path = args.output / "manifest.json"
 
     try:

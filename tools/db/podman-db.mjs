@@ -158,7 +158,7 @@ if (command === 'up') {
 } else {
   console.error(`Unknown command: ${command}`);
   console.error(
-    'Usage: node tools/podman-db.mjs <up|down|reset|logs|status>',
+    'Usage: node tools/db/podman-db.mjs <up|down|reset|logs|status>',
   );
   process.exit(1);
 }

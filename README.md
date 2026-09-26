@@ -14,12 +14,9 @@ A TypeScript npm-workspace monorepo for planning and executing telecom drone dri
 │   └── contracts/         # shared TypeScript domain/API contracts
 ├── tests/                 # platform-level workflow and integration tests
 ├── tools/
-│   ├── dev.mjs            # starts the local application stack
-│   ├── watch-service.mjs  # compile/watch helper for Node services
-│   ├── test.mjs           # test runner
-│   ├── clean.mjs          # build/generated-file cleanup
-|   ├── podman-db.mjs      # launch/stop database pod
-│   └── data-pipeline/     # administrative/KPI data generation
+│   ├── dev.mjs, clean.mjs, test.mjs, watch-service.mjs  # lifecycle
+│   ├── db/                # database pod + seed scripts
+│   └── data-pipeline/     # source inputs, generators, reports
 ├── docs/
 │   ├── adr/
 │   └── uml/
@@ -236,17 +233,15 @@ Both modes intentionally separate numeric data from presentation colors. The sig
 
 ## Administrative data
 
-Runtime administrative boundaries are stored in:
-
-```text
-apps/frontend/public/data/boundaries.geojson
-```
-
-Preprocessing and source datasets are kept under:
-
-```text
-tools/data-pipeline/admin-boundaries/
-```
+| Role | Location |
+|------|----------|
+| Source GeoJSON | `tools/data-pipeline/admin-boundaries/input/` |
+| Preprocess / review scripts | `tools/data-pipeline/admin-boundaries/` |
+| Preprocess reports | `tools/data-pipeline/admin-boundaries/reports/` |
+| Runtime boundaries + manifest | `apps/frontend/public/data/` |
+| Signal-quality generator | `tools/data-pipeline/signal-quality/generate.py` |
+| Runtime signal-quality JSON | `apps/frontend/public/data/signal-quality.json` |
+| DB seed scripts | `tools/db/` |
 
 ## Development notes
 

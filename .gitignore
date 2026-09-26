@@ -20,3 +20,6 @@ __pycache__/
 
 .agents/
 .claude/
+
+# geoBoundaries source GeoJSON (downloaded by preprocess.py)
+tools/data-pipeline/admin-boundaries/input/**/*.geojson
